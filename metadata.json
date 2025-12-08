@@ -1,0 +1,5 @@
+{
+  "name": "IronPath AI",
+  "description": "An AI-powered gym workout tracker that provides automatic load progression suggestions to help users optimize their training.",
+  "requestFramePermissions": []
+}
