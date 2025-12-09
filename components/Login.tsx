@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { DumbbellIcon } from './icons';
-import { supabase } from '../supaBaseClient';
+// Verifique se o caminho está correto. Sugiro padronizar para '../lib/supabaseClient' se seguiu o tutorial anterior.
+import { supabase } from '../supaBaseClient'; 
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false); // Alternar entre Login e Cadastro
+  const [isSignUp, setIsSignUp] = useState(false);
   const [message, setMessage] = useState<{ type: 'error' | 'success', text: string } | null>(null);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -16,21 +17,30 @@ export const Login: React.FC = () => {
 
     try {
       if (isSignUp) {
-        // CADASTRO
-        const { error } = await supabase.auth.signUp({
+        // --- LÓGICA DE CADASTRO CORRIGIDA ---
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
+
         if (error) throw error;
-        setMessage({ type: 'success', text: 'Cadastro realizado! Verifique seu email ou faça login.' });
+
+        // Se o "Confirm Email" estiver DESATIVADO no Supabase, data.session virá preenchido
+        if (data.session) {
+            setMessage({ type: 'success', text: 'Cadastro realizado! Entrando...' });
+            // O componente App.tsx detectará a sessão automaticamente e mudará a tela
+        } else {
+            // Caso contrário (se ainda precisar confirmar)
+            setMessage({ type: 'success', text: 'Cadastro realizado! Se necessário, verifique seu email.' });
+        }
+
       } else {
-        // LOGIN
+        // --- LOGIN ---
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
-        // O redirecionamento acontece automaticamente pelo listener no App.tsx
       }
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Ocorreu um erro.' });
@@ -62,7 +72,8 @@ export const Login: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-gray-900/50 border border-gray-600 rounded-lg py-3 px-4 text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                className="w-full bg-gray-900/50 border border-gray-600 rounded-lg py-3 px-4 text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none placeholder-gray-500"
+                placeholder="seu@email.com"
               />
             </div>
             <div>
@@ -73,13 +84,14 @@ export const Login: React.FC = () => {
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-gray-900/50 border border-gray-600 rounded-lg py-3 px-4 text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                className="w-full bg-gray-900/50 border border-gray-600 rounded-lg py-3 px-4 text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none placeholder-gray-500"
+                placeholder="••••••"
               />
             </div>
           </div>
 
           {message && (
-            <div className={`p-3 border rounded-lg text-sm text-center ${message.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}>
+            <div className={`p-3 border rounded-lg text-sm text-center font-medium ${message.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}>
               {message.text}
             </div>
           )}
@@ -87,9 +99,9 @@ export const Login: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg disabled:opacity-70 flex justify-center items-center"
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg disabled:opacity-70 flex justify-center items-center active:scale-95"
           >
-            {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (isSignUp ? 'Cadastrar' : 'Entrar')}
+            {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (isSignUp ? 'Cadastrar e Entrar' : 'Entrar')}
           </button>
         </form>
         
