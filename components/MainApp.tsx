@@ -2,36 +2,35 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { WorkoutPlanner } from './WorkoutPlanner';
 import { Menu } from './Menu';
 import { Onboarding } from './OnBoarding';
+import { HomeTab } from './HomeTab';
+import { ProfileTab } from './ProfileTab'; // Nova Aba
 import { Workout, Suggestion, UserProfile } from '../types';
 import { getWorkoutFromPDF } from '../services/geminiService';
 import { supabase } from '../supaBaseClient';
 import { Session } from '@supabase/supabase-js';
-import { UploadIcon, DumbbellIcon, ClockIcon, HomeIcon, UserIcon, HistoryIcon, PlayIcon } from './icons';
+import { UploadIcon, DumbbellIcon, ClockIcon, HomeIcon, UserIcon, HistoryIcon } from './icons';
 
 export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
-  // Dados do Treino
+  // Dados
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [completedDates, setCompletedDates] = useState<string[]>([]);
   
-  // Estado de UI e Perfil
+  // UI & Navegação
+  const [activeTab, setActiveTab] = useState<'home' | 'workout' | 'history' | 'profile'>('home');
   const [importing, setImporting] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
 
-  // Estados do Timer e Execução
+  // Timer
   const [isWorkoutRunning, setIsWorkoutRunning] = useState(false);
   const [seconds, setSeconds] = useState(0);
 
-  // --- TIMER EFFECT ---
+  // Timer Logic
   useEffect(() => {
     let interval: any;
     if (isWorkoutRunning) {
-      interval = setInterval(() => {
-          setSeconds(s => s + 1);
-      }, 1000);
-    } else {
-      clearInterval(interval);
+      interval = setInterval(() => setSeconds(s => s + 1), 1000);
     }
     return () => clearInterval(interval);
   }, [isWorkoutRunning]);
@@ -42,25 +41,13 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
     return `${mins}m ${secs}s`;
   };
 
-  // --- CARREGAMENTO INICIAL DE DADOS ---
+  // Carregar Dados
   useEffect(() => {
-    const loadUserData = async () => {
-      // 1. Carregar Perfil
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .single();
-      
+    const loadData = async () => {
+      const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', session.user.id).single();
       if (profile) setUserProfile(profile);
 
-      // 2. Carregar Treinos Salvos
-      const { data: progress } = await supabase
-        .from('user_progress')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .single();
-
+      const { data: progress } = await supabase.from('user_progress').select('*').eq('user_id', session.user.id).single();
       if (progress) {
         const loadedWorkouts = (progress.workouts || []).map((w: Workout) => ({
            ...w,
@@ -70,14 +57,12 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
         setCompletedDates(progress.completed_dates || []);
         setCurrentIdx(progress.current_workout_index || 0);
       }
-      
       setCheckingProfile(false);
     };
-
-    loadUserData();
+    loadData();
   }, [session.user.id]);
 
-  // --- SALVAMENTO AUTOMÁTICO (Debounce) ---
+  // Salvar Dados
   useEffect(() => {
     if (workouts.length === 0) return;
     const t = setTimeout(async () => {
@@ -92,9 +77,14 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
     return () => clearTimeout(t);
   }, [workouts, completedDates, currentIdx]);
 
-  // --- HANDLERS ---
+  // Handlers
+  const handleImport = async (file?: File) => {
+    // Se não passar arquivo, abre seletor manual (hack para reutilizar função)
+    if (!file) {
+        document.getElementById('hidden-file-input')?.click();
+        return;
+    }
 
-  const handleImport = async (file: File) => {
     setImporting(true);
     try {
       const reader = new FileReader();
@@ -106,6 +96,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
          setCurrentIdx(0);
          setSeconds(0);
          setIsWorkoutRunning(false);
+         setActiveTab('workout'); // Vai para o treino após importar
+         
          await supabase.from('user_progress').upsert({
             user_id: session.user.id,
             workouts: newW,
@@ -117,6 +109,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
     } catch (e) { alert("Erro ao importar"); setImporting(false); }
   };
 
+  // Funções de Treino (mesmas de antes)
   const updateWeight = useCallback((id: number, w: number) => {
     setWorkouts(prev => {
         const copy = [...prev];
@@ -154,7 +147,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   }, [currentIdx]);
 
   const handleWorkoutComplete = () => {
-    setIsWorkoutRunning(false); // Para o timer
+    setIsWorkoutRunning(false);
     setCompletedDates(p => [...p, new Date().toISOString().split('T')[0]]);
   };
 
@@ -178,125 +171,142 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   }, [currentIdx]);
 
 
-  // --- RENDERIZAÇÃO CONDICIONAL ---
+  // --- RENDERIZAÇÃO ---
 
-  // 1. Loading Inicial
-  if (checkingProfile) {
-    return (
-        <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center text-white space-y-4">
-            <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-500 border-t-transparent"></div>
-            <p>Carregando perfil...</p>
-        </div>
-    );
-  }
+  if (checkingProfile) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Carregando...</div>;
+  if (!userProfile) return <Onboarding userId={session.user.id} onComplete={() => window.location.reload()} />;
 
-  // 2. Se não tem perfil, mostra Onboarding
-  if (!userProfile) {
-    return <Onboarding userId={session.user.id} onComplete={() => window.location.reload()} />;
-  }
+  // Input file escondido para o menu Home
+  const HiddenInput = () => (
+    <input 
+        id="hidden-file-input"
+        type="file" 
+        className="hidden" 
+        accept="application/pdf" 
+        onChange={e => e.target.files?.[0] && handleImport(e.target.files[0])} 
+    />
+  );
 
-  // 3. App Principal
   return (
-    <div className="min-h-screen bg-gray-900 pb-24 relative">
+    <div className="min-h-screen bg-gray-900 pb-20 relative">
+      <HiddenInput />
       
-      {/* Overlay de Importação */}
+      {/* Loading Overlay */}
       {importing && (
           <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center text-white p-6 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mb-6"/>
               <h3 className="text-xl font-bold">Lendo PDF...</h3>
-              <p className="text-gray-400 mt-2">A IA está analisando seu treino.</p>
           </div>
       )}
-      
-      {/* Barra de Timer Fixa */}
-      <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur border-b border-gray-800 px-4 pt-safe-top pb-3 flex items-center justify-center shadow-lg">
-         <div className={`rounded-full px-6 py-1.5 flex items-center space-x-2 border transition-colors
-             ${isWorkoutRunning ? 'bg-indigo-900/40 border-indigo-500/50 text-indigo-200' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>
-            <ClockIcon className="w-4 h-4" />
-            <span className="font-mono font-bold tracking-wide">
-                {isWorkoutRunning ? formatTime(seconds) : (seconds > 0 ? `Final: ${formatTime(seconds)}` : '0m 0s')}
-            </span>
-         </div>
-      </div>
 
-      <div className="p-4 max-w-md mx-auto">
-        {/* Header App */}
-        <div className="flex justify-between items-center mb-4">
-            <h1 className="font-bold text-white text-lg flex items-center gap-2">
-                <DumbbellIcon className="w-5 h-5 text-indigo-500"/> IronPath
-            </h1>
-            <div className="flex items-center gap-3">
-               <span className="text-[10px] bg-gray-800 border border-gray-700 px-2 py-1 rounded text-gray-400 capitalize">
-                   {userProfile.experience_level}
-               </span>
-               <button onClick={() => supabase.auth.signOut()} className="text-xs text-gray-500 hover:text-white">Sair</button>
-            </div>
-        </div>
+      {/* RENDERIZAÇÃO DAS TELAS (TABS) */}
+      <div className="max-w-md mx-auto pt-safe-top">
+        
+        {/* ABA: HOME (INÍCIO) */}
+        {activeTab === 'home' && (
+            <HomeTab 
+                userProfile={userProfile}
+                workoutName={workouts[currentIdx]?.name}
+                completedCount={completedDates.length}
+                onStartWorkout={() => {
+                    setActiveTab('workout');
+                    if(seconds === 0 && !isWorkoutRunning) setIsWorkoutRunning(true);
+                }}
+                onImportClick={() => handleImport()}
+                hasWorkout={workouts.length > 0}
+            />
+        )}
 
-        {workouts.length === 0 ? (
-          // Tela Sem Treino
-          <div className="flex flex-col items-center justify-center h-[50vh] text-center">
-              <div className="bg-gray-800 p-6 rounded-full mb-6 border border-gray-700 shadow-xl">
-                  <UploadIcon className="w-8 h-8 text-indigo-400"/>
-              </div>
-              <h2 className="text-xl font-bold text-white mb-2">Sem Treino</h2>
-              <p className="text-gray-400 text-sm mb-6 max-w-xs mx-auto">Importe seu PDF para que a IA monte sua ficha personalizada.</p>
-              
-              <label className="bg-indigo-600 active:bg-indigo-700 transition-colors w-full py-4 rounded-xl font-bold text-white text-center shadow-lg block cursor-pointer">
-                  Selecionar PDF
-                  <input type="file" className="hidden" accept="application/pdf" onChange={e => e.target.files?.[0] && handleImport(e.target.files[0])} />
-              </label>
-          </div>
-        ) : (
-          // Tela Com Treino
-          <>
-            <Menu completedDates={completedDates} workouts={workouts} currentWorkoutIndex={currentIdx} onWorkoutSelect={setCurrentIdx} onFileImport={handleImport} />
-            
-            {/* Se timer zerado e parado -> Mostrar Botão Gigante de Iniciar */}
-            {!isWorkoutRunning && seconds === 0 ? (
-                <div className="mt-10 animate-fade-in">
-                    <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6 text-center shadow-2xl">
-                        <h2 className="text-2xl font-bold text-white mb-2">{workouts[currentIdx]?.name}</h2>
-                        <p className="text-gray-400 mb-8">{workouts[currentIdx]?.exercises.length} exercícios preparados</p>
-                        
-                        <button 
-                            onClick={() => setIsWorkoutRunning(true)}
-                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xl py-6 rounded-2xl shadow-lg shadow-indigo-500/20 flex items-center justify-center space-x-3 transition-transform active:scale-95"
-                        >
-                            <PlayIcon className="w-8 h-8" />
-                            <span>INICIAR TREINO</span>
-                        </button>
+        {/* ABA: TREINO (WORKOUT) */}
+        {activeTab === 'workout' && (
+            <>
+                {/* Timer (Só aparece na aba de treino) */}
+                <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur border-b border-gray-800 px-4 pb-3 pt-2 flex items-center justify-center shadow-lg">
+                    <div className={`rounded-full px-6 py-1.5 flex items-center space-x-2 border transition-colors
+                        ${isWorkoutRunning ? 'bg-indigo-900/40 border-indigo-500/50 text-indigo-200' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>
+                        <ClockIcon className="w-4 h-4" />
+                        <span className="font-mono font-bold tracking-wide">
+                            {isWorkoutRunning ? formatTime(seconds) : (seconds > 0 ? `Final: ${formatTime(seconds)}` : '0m 0s')}
+                        </span>
                     </div>
                 </div>
-            ) : (
-                // Se rodando -> Mostrar Planner
-                <WorkoutPlanner 
-                    workout={workouts[currentIdx]} 
-                    userProfile={userProfile} // Passando o perfil para a IA
-                    onUpdateWeight={updateWeight} 
-                    onToggleSet={toggleSet} 
-                    onFinishExercise={handleFinishExercise}
-                    onWorkoutComplete={handleWorkoutComplete}
-                    onNewWorkout={applySuggestions}
-                />
-            )}
-          </>
+
+                <div className="p-4">
+                    {workouts.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-[50vh] text-center">
+                            <p className="text-gray-400 mb-4">Nenhum treino carregado.</p>
+                            <button onClick={() => handleImport()} className="bg-indigo-600 px-6 py-3 rounded-xl text-white font-bold">Importar PDF</button>
+                        </div>
+                    ) : (
+                        <>
+                            <Menu completedDates={completedDates} workouts={workouts} currentWorkoutIndex={currentIdx} onWorkoutSelect={setCurrentIdx} onFileImport={(f) => handleImport(f)} />
+                            <WorkoutPlanner 
+                                workout={workouts[currentIdx]} 
+                                userProfile={userProfile}
+                                onUpdateWeight={updateWeight} 
+                                onToggleSet={toggleSet} 
+                                onFinishExercise={handleFinishExercise}
+                                onWorkoutComplete={handleWorkoutComplete}
+                                onNewWorkout={applySuggestions}
+                            />
+                        </>
+                    )}
+                </div>
+            </>
         )}
+
+        {/* ABA: PERFIL */}
+        {activeTab === 'profile' && (
+            <ProfileTab 
+                profile={userProfile} 
+                email={session.user.email} 
+                onLogout={() => supabase.auth.signOut()} 
+            />
+        )}
+
+        {/* Placeholder para Histórico (vazio por enquanto) */}
+        {activeTab === 'history' && (
+            <div className="p-6 text-center text-gray-500 mt-20">
+                <HistoryIcon className="w-12 h-12 mx-auto mb-4 opacity-50"/>
+                <p>Histórico detalhado em breve.</p>
+                <p className="text-xs mt-2">Total de treinos: {completedDates.length}</p>
+            </div>
+        )}
+
       </div>
 
-      {/* Menu Inferior Fixo */}
+      {/* MENU INFERIOR (NAVEGAÇÃO) */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 h-20 pb-safe-bottom flex justify-around items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.5)]">
-         <button className="flex flex-col items-center justify-center w-full h-full space-y-1 text-white active:bg-gray-800/50 transition-colors">
+         <button 
+            onClick={() => setActiveTab('home')}
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'home' ? 'text-white' : 'text-gray-500'}`}
+         >
             <HomeIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium mt-1">Início</span>
+            <span className="text-[10px] font-medium">Início</span>
          </button>
-         <button className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-500 hover:text-gray-300 active:bg-gray-800/50 transition-colors">
+         
+         <button 
+            onClick={() => setActiveTab('workout')}
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'workout' ? 'text-indigo-400' : 'text-gray-500'}`}
+         >
+            <DumbbellIcon className="w-6 h-6" />
+            <span className="text-[10px] font-medium">Treino</span>
+         </button>
+
+         <button 
+            onClick={() => setActiveTab('history')}
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'history' ? 'text-white' : 'text-gray-500'}`}
+         >
             <HistoryIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium mt-1">Histórico</span>
+            <span className="text-[10px] font-medium">Histórico</span>
          </button>
-         <button className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-500 hover:text-gray-300 active:bg-gray-800/50 transition-colors">
+         
+         <button 
+            onClick={() => setActiveTab('profile')}
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'profile' ? 'text-white' : 'text-gray-500'}`}
+         >
             <UserIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium mt-1">Perfil</span>
+            <span className="text-[10px] font-medium">Perfil</span>
          </button>
       </div>
 

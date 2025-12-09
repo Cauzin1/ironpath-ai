@@ -1,32 +1,14 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
-// Adicione UserProfile na importação
-import { Workout, Suggestion, UserProfile } from '../types';
+import { GoogleGenAI, Type } from "@google/genai";
+import { Workout, Suggestion, Exercise } from '../types';
 
-// AJUSTE 1: Correção da variável de ambiente para Vite
-const API_KEY = process.env.VITE_GEMINI_API_KEY;
-
+// Assume API_KEY is set in the environment
+const API_KEY = process.env.API_KEY;
 if (!API_KEY) {
-    console.warn("VITE_GEMINI_API_KEY environment variable not set. AI features will not work.");
+    console.warn("API_KEY environment variable not set. Using a placeholder. AI features will not work.");
 }
-
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-// AJUSTE 2: Agora aceita 'profile' opcional
-const generateSuggestionPrompt = (workout: Workout, profile?: UserProfile): string => {
-  
-  // Lógica de formatação do perfil
-  const userContext = profile 
-    ? `
-      USER PROFILE (Context for weight progression):
-      - Age: ${profile.age}
-      - Body Weight: ${profile.weight} kg
-      - Height: ${profile.height} cm
-      - Gender: ${profile.gender}
-      - Experience Level: ${profile.experience_level}
-      - Goal: ${profile.goal}
-      (Adjust suggestions based on experience level. Beginners progress faster, advanced users slower.)`
-    : "User Profile: Not provided (Assume intermediate level).";
-
+const generateSuggestionPrompt = (workout: Workout): string => {
   const performanceDetails = workout.exercises.map(ex => `
     - Exercise: ${ex.name} (ID: ${ex.id})
       - Target: ${ex.sets} sets of ${ex.reps} reps.
@@ -35,29 +17,22 @@ const generateSuggestionPrompt = (workout: Workout, profile?: UserProfile): stri
   `).join('');
 
   return `
-    You are an elite strength coach. Analyze the following workout session and provide suggestions for the NEXT session.
-    
-    ${userContext}
-
+    Analyze the following workout session for a user and provide suggestions for their next one.
     Workout Name: ${workout.name}
 
     Performance Details:
     ${performanceDetails}
 
     For each exercise, calculate the suggested weight for the next session using this progressive overload logic:
-    1. If all sets were completed successfully:
-       - If Beginner: Suggest aggressive increase (2kg-4kg).
-       - If Advanced: Suggest conservative increase (1kg-2kg) or maintenance.
-    2. If the user completed most sets but struggled on the last one: Suggest keeping the weight.
-    3. If the user failed sets: Suggest a slight decrease or maintenance to focus on form.
+    1. If all sets were completed successfully, increase the weight by a small increment (e.g., 2.5kg for compound lifts like Bench Press, 1-2kg for isolation exercises like Lateral Raises).
+    2. If the user completed most sets but likely struggled on the last one (e.g., completed all but one set), suggest keeping the weight the same to solidify form and build confidence.
+    3. If the user failed to complete a significant number of sets (e.g., two or more sets incomplete), suggest a slight decrease in weight to focus on volume and proper technique.
 
-    Also, provide a short, motivational, and helpful message (in Portuguese) for each exercise. 
-    Your response must be in the specified JSON format.
+    Also, provide a short, motivational, and helpful message (in Portuguese) for each exercise. Your response must be in the specified JSON format.
   `;
 };
 
-// Mantendo seu Schema original
-const suggestionResponseSchema: Schema = {
+const suggestionResponseSchema = {
     type: Type.ARRAY,
     items: {
       type: Type.OBJECT,
@@ -76,20 +51,19 @@ const suggestionResponseSchema: Schema = {
         },
         message: {
           type: Type.STRING,
-          description: 'A short, motivational message in Portuguese.',
+          description: 'A short, motivational message in Portuguese for the user regarding this exercise.',
         },
       },
       required: ["exerciseId", "exerciseName", "suggestedWeight", "message"],
     },
 };
 
-// AJUSTE 3: Assinatura da função atualizada para receber profile
-export const getAIWorkoutSuggestions = async (workout: Workout, profile?: UserProfile): Promise<Suggestion[]> => {
+export const getAIWorkoutSuggestions = async (workout: Workout): Promise<Suggestion[]> => {
     try {
-        const prompt = generateSuggestionPrompt(workout, profile);
+        const prompt = generateSuggestionPrompt(workout);
         
         const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash", // Ajustado para versão compatível
+            model: "gemini-2.5-flash",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -98,8 +72,7 @@ export const getAIWorkoutSuggestions = async (workout: Workout, profile?: UserPr
             },
         });
 
-        // O SDK novo as vezes retorna null se falhar, bom garantir string vazia
-        const jsonText = response.text ? response.text.trim() : "[]";
+        const jsonText = response.text.trim();
         const suggestions: Suggestion[] = JSON.parse(jsonText);
         
         return workout.exercises.map(exercise => {
@@ -110,26 +83,25 @@ export const getAIWorkoutSuggestions = async (workout: Workout, profile?: UserPr
                 exerciseId: exercise.id,
                 exerciseName: exercise.name,
                 suggestedWeight: exercise.currentWeight,
-                message: "Mantenha o foco e a constância!"
+                message: "Não foi possível gerar uma sugestão. Tente manter o peso e focar na forma."
             }
         });
         
     } catch (error) {
         console.error("Error fetching AI suggestions:", error);
-        // Não quebra a aplicação, retorna array vazio em caso de erro da API
-        return [];
+        throw new Error("Failed to get suggestions from AI. Please check your API key and try again.");
     }
 };
 
-// Mantendo seu Schema de PDF original
-const pdfParserSchema: Schema = {
+
+const pdfParserSchema = {
     type: Type.ARRAY,
     items: {
       type: Type.OBJECT,
       properties: {
         name: {
           type: Type.STRING,
-          description: "The name of the workout day (e.g., 'Treino A', 'Push Day').",
+          description: "The name of the workout day (e.g., 'Treino A - Peito e Tríceps', 'Push Day').",
         },
         exercises: {
           type: Type.ARRAY,
@@ -138,15 +110,15 @@ const pdfParserSchema: Schema = {
             properties: {
               name: {
                 type: Type.STRING,
-                description: "The name of the exercise.",
+                description: "The name of the exercise (e.g., 'Supino Reto').",
               },
               sets: {
                 type: Type.NUMBER,
-                description: "Number of sets.",
+                description: "The number of sets for the exercise.",
               },
               reps: {
                 type: Type.NUMBER,
-                description: "Number of reps.",
+                description: "The number of repetitions per set.",
               },
             },
             required: ["name", "sets", "reps"],
@@ -157,16 +129,20 @@ const pdfParserSchema: Schema = {
     },
 };
 
+
 export const getWorkoutFromPDF = async (pdfData: string): Promise<Workout[]> => {
     try {
         const prompt = `
-            Analyze the provided workout plan PDF. Identify the different workout days.
-            For each workout day, extract all the exercises, sets, and reps.
-            Return ONLY the JSON matching the schema.
+            Analyze the provided workout plan PDF. Identify the different workout days or splits (e.g., Treino A, Treino B, Push, Pull, Legs).
+            For each workout day, extract all the exercises listed.
+            For each exercise, identify the number of sets and repetitions.
+            Return the data as a JSON array, where each object represents a workout day.
+            Your response must be only the JSON, adhering to the provided schema. Do not include any explanatory text.
+            If the PDF contains tables, parse them correctly. Pay close attention to exercise names, sets, and reps.
         `;
         
         const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash", // Ajustado para versão compatível
+            model: "gemini-2.5-flash",
             contents: { 
                 parts: [
                     { text: prompt },
@@ -184,21 +160,21 @@ export const getWorkoutFromPDF = async (pdfData: string): Promise<Workout[]> => 
             },
         });
 
-        const jsonText = response.text ? response.text.trim() : "[]";
+        const jsonText = response.text.trim();
         const parsedWorkouts = JSON.parse(jsonText);
 
-        // Mapeamento para estrutura interna do App
+        let exerciseIdCounter = 1;
+        // Map the parsed data to our app's Workout structure
         const formattedWorkouts: Workout[] = parsedWorkouts.map((workout: any) => ({
             name: workout.name,
-            exercises: workout.exercises.map((ex: any, index: number) => ({
-                id: Date.now() + Math.floor(Math.random() * 100000) + index, // ID mais seguro para React
+            exercises: workout.exercises.map((ex: any) => ({
+                id: exerciseIdCounter++,
                 name: ex.name,
-                sets: Number(ex.sets),
-                reps: Number(ex.reps),
-                currentWeight: 0, 
-                completedSets: [], 
-                isFinished: false, // Importante para o novo layout
-                history: [], 
+                sets: ex.sets,
+                reps: ex.reps,
+                currentWeight: 0, // Default value
+                completedSets: [], // Default value
+                history: [], // Default value
             })),
         }));
 
@@ -206,6 +182,6 @@ export const getWorkoutFromPDF = async (pdfData: string): Promise<Workout[]> => 
 
     } catch (error) {
         console.error("Error processing PDF with AI:", error);
-        throw new Error("Falha ao ler o PDF. Tente um arquivo diferente.");
+        throw new Error("Failed to parse workout from PDF. The document might be in an unsupported format or corrupted.");
     }
 };
