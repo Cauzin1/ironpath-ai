@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Workout, Suggestion } from '../types';
+import { Workout, Suggestion, UserProfile } from '../types';
 import { getAIWorkoutSuggestions } from '../services/geminiService';
 import { ExerciseList } from './ExerciseList';
 import { ProgressTracker } from './ProgressTracker';
@@ -7,15 +7,17 @@ import { CheckCircleIcon } from './icons';
 
 interface WPProps {
   workout: Workout;
+  userProfile: UserProfile | null; // Recebe o perfil do usuário para a IA
   onUpdateWeight: (id: number, w: number) => void;
   onToggleSet: (id: number, s: number) => void;
-  onFinishExercise: (id: number) => void;
-  onWorkoutComplete: () => void;
+  onFinishExercise: (id: number) => void; // Função para o checkbox do exercício
+  onWorkoutComplete: () => void; // Função para parar o timer
   onNewWorkout: (s: Suggestion[]) => void;
 }
 
 export const WorkoutPlanner: React.FC<WPProps> = ({ 
   workout, 
+  userProfile,
   onUpdateWeight, 
   onToggleSet, 
   onFinishExercise, 
@@ -26,27 +28,34 @@ export const WorkoutPlanner: React.FC<WPProps> = ({
   const [loading, setLoading] = useState(false);
   const [finished, setFinished] = useState(false);
 
-  // Lógica de Finalizar Treino + IA
   const handleFinish = async () => {
+    // 1. Confirmação do usuário
     if(!window.confirm("Finalizar o treino de hoje e parar o tempo?")) return;
     
     setLoading(true);
-    onWorkoutComplete(); // PARA O TIMER NO MAINAPP
+    
+    // 2. Para o timer no MainApp
+    onWorkoutComplete(); 
     
     try {
+      // 3. Scroll para o topo para feedback visual
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      // Chama a IA
-      const sugs = await getAIWorkoutSuggestions(workout);
+      
+      // 4. Chama a IA passando o treino E o perfil do usuário
+      // Se userProfile for null, passa undefined (a função da IA trata isso com um padrão)
+      const sugs = await getAIWorkoutSuggestions(workout, userProfile || undefined);
+      
       setSuggestions(sugs);
       setFinished(true);
       
-      // Rola a tela até as sugestões
+      // 5. Rola a tela até a sessão de sugestões (ProgressTracker)
       setTimeout(() => {
           const element = document.getElementById('suggestions-section');
           element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 300);
 
     } catch (e) { 
+        console.error(e);
         alert("Erro ao conectar com a IA. Verifique sua conexão."); 
     }
     
@@ -54,13 +63,12 @@ export const WorkoutPlanner: React.FC<WPProps> = ({
   };
 
   return (
-    <div className="pb-40"> {/* Espaço extra no final para não esconder o botão */}
-      
-      {/* Título do Treino */}
+    <div className="pb-40"> 
+      {/* Cabeçalho do Treino */}
       <div className="px-1 mb-6">
         <h2 className="text-2xl font-black text-white leading-none tracking-tight">{workout.name}</h2>
         <p className="text-xs text-indigo-400 uppercase font-bold mt-2 tracking-widest bg-indigo-900/30 inline-block px-2 py-1 rounded">
-            {workout.exercises.length} Exercícios
+            {workout.exercises.length} EXERCÍCIOS
         </p>
       </div>
 
@@ -73,9 +81,10 @@ export const WorkoutPlanner: React.FC<WPProps> = ({
         isWorkoutFinished={finished} 
       />
       
-      {/* --- BOTÃO FINALIZAR TREINO (Aparece no final da lista) --- */}
+      {/* Botão de Ação Final */}
       <div className="mt-8 px-2">
         {!finished ? (
+            // Botão: Finalizar Treino (Chama a IA)
             <button 
                 onClick={handleFinish} 
                 disabled={loading} 
@@ -84,7 +93,7 @@ export const WorkoutPlanner: React.FC<WPProps> = ({
                 {loading ? (
                     <>
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                        <span>Gerando Progressão com IA...</span>
+                        <span>Analisando Performance...</span>
                     </>
                 ) : (
                     <>
@@ -94,7 +103,7 @@ export const WorkoutPlanner: React.FC<WPProps> = ({
                 )}
             </button>
         ) : (
-            // Botão para iniciar novo ciclo após ver sugestões
+            // Botão: Iniciar Próximo Ciclo (Aplica as sugestões da IA)
             <button 
                 onClick={() => { 
                     onNewWorkout(suggestions); 
@@ -109,7 +118,7 @@ export const WorkoutPlanner: React.FC<WPProps> = ({
         )}
       </div>
 
-      {/* Seção de Sugestões da IA */}
+      {/* Área onde aparecem as sugestões da IA */}
       <div id="suggestions-section" className="mt-8">
           <ProgressTracker suggestions={suggestions} />
       </div>

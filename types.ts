@@ -26,3 +26,12 @@ export interface Suggestion {
   suggestedWeight: number;
   message: string;
 }
+
+export interface UserProfile {
+  age: number;
+  weight: number;
+  height: number;
+  gender: string;
+  experience_level: string;
+  goal: string;
+}
