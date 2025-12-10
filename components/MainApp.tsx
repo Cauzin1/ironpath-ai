@@ -3,12 +3,21 @@ import { WorkoutPlanner } from './WorkoutPlanner';
 import { Menu } from './Menu';
 import { Onboarding } from './OnBoarding';
 import { HomeTab } from './HomeTab';
-import { ProfileTab } from './ProfileTab'; // Nova Aba
+import { ProfileTab } from './ProfileTab';
+import WebDashboard from './WebDashboard'; // CORREÇÃO: Importar WebDashboard
 import { Workout, Suggestion, UserProfile } from '../types';
 import { getWorkoutFromPDF } from '../services/geminiService';
 import { supabase } from '../supaBaseClient';
 import { Session } from '@supabase/supabase-js';
-import { UploadIcon, DumbbellIcon, ClockIcon, HomeIcon, UserIcon, HistoryIcon } from './icons';
+import { 
+  UploadIcon, 
+  DumbbellIcon, 
+  ClockIcon, 
+  HomeIcon, 
+  UserIcon, 
+  HistoryIcon,
+  ChartBarIcon
+} from './icons';
 
 export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   // Dados
@@ -17,7 +26,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const [completedDates, setCompletedDates] = useState<string[]>([]);
   
   // UI & Navegação
-  const [activeTab, setActiveTab] = useState<'home' | 'workout' | 'history' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'workout' | 'history' | 'profile' | 'dashboard'>('home');
   const [importing, setImporting] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
@@ -79,7 +88,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
 
   // Handlers
   const handleImport = async (file?: File) => {
-    // Se não passar arquivo, abre seletor manual (hack para reutilizar função)
     if (!file) {
         document.getElementById('hidden-file-input')?.click();
         return;
@@ -96,7 +104,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
          setCurrentIdx(0);
          setSeconds(0);
          setIsWorkoutRunning(false);
-         setActiveTab('workout'); // Vai para o treino após importar
+         setActiveTab('workout');
          
          await supabase.from('user_progress').upsert({
             user_id: session.user.id,
@@ -106,10 +114,13 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
          });
          setImporting(false);
       }
-    } catch (e) { alert("Erro ao importar"); setImporting(false); }
+    } catch (e) { 
+      alert("Erro ao importar"); 
+      setImporting(false); 
+    }
   };
 
-  // Funções de Treino (mesmas de antes)
+  // Funções de Treino
   const updateWeight = useCallback((id: number, w: number) => {
     setWorkouts(prev => {
         const copy = [...prev];
@@ -170,12 +181,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
       setIsWorkoutRunning(false);
   }, [currentIdx]);
 
-
-  // --- RENDERIZAÇÃO ---
-
-  if (checkingProfile) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Carregando...</div>;
-  if (!userProfile) return <Onboarding userId={session.user.id} onComplete={() => window.location.reload()} />;
-
   // Input file escondido para o menu Home
   const HiddenInput = () => (
     <input 
@@ -186,6 +191,11 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
         onChange={e => e.target.files?.[0] && handleImport(e.target.files[0])} 
     />
   );
+
+  // --- RENDERIZAÇÃO ---
+
+  if (checkingProfile) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Carregando...</div>;
+  if (!userProfile) return <Onboarding userId={session.user.id} onComplete={() => window.location.reload()} />;
 
   return (
     <div className="min-h-screen bg-gray-900 pb-20 relative">
@@ -255,6 +265,13 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             </>
         )}
 
+        {/* ABA: DASHBOARD (PROGRESSO) */}
+        {activeTab === 'dashboard' && (
+            <div className="p-4">
+                <WebDashboard userId={session.user.id} /> {/* CORREÇÃO: Usar WebDashboard */}
+            </div>
+        )}
+
         {/* ABA: PERFIL */}
         {activeTab === 'profile' && (
             <ProfileTab 
@@ -264,7 +281,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             />
         )}
 
-        {/* Placeholder para Histórico (vazio por enquanto) */}
+        {/* Placeholder para Histórico */}
         {activeTab === 'history' && (
             <div className="p-6 text-center text-gray-500 mt-20">
                 <HistoryIcon className="w-12 h-12 mx-auto mb-4 opacity-50"/>
@@ -294,6 +311,14 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
          </button>
 
          <button 
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'dashboard' ? 'text-emerald-400' : 'text-gray-500'}`}
+         >
+            <ChartBarIcon className="w-6 h-6" />
+            <span className="text-[10px] font-medium">Progresso</span>
+         </button>
+
+         <button 
             onClick={() => setActiveTab('history')}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'history' ? 'text-white' : 'text-gray-500'}`}
          >
@@ -309,7 +334,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             <span className="text-[10px] font-medium">Perfil</span>
          </button>
       </div>
-
     </div>
   );
 };

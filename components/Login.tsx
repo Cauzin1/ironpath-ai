@@ -57,10 +57,11 @@ export const Login: React.FC = () => {
             <div className="bg-indigo-600 p-4 rounded-2xl mb-4 shadow-lg shadow-indigo-500/30">
                 <DumbbellIcon className="w-12 h-12 text-white" />
             </div>
-            <h1 className="text-4xl font-extrabold text-white tracking-tight">IronPath AI</h1>
-            <p className="text-gray-400 mt-2">
-              {isSignUp ? 'Crie sua conta e comece a evoluir.' : 'Sua evolução controlada por inteligência.'}
-            </p>
+            <h1 className="text-4xl font-bold tracking-tight">
+              <span className="w-12 h-12 text-white">GOL</span>
+              <span className="w-12 h-12 text-indigo-400 ">IA</span>
+              <span className="w-12 h-12 text-white">S</span>
+            </h1>
         </div>
         
         <form onSubmit={handleAuth} className="bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-2xl p-8 space-y-6">
