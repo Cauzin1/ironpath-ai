@@ -224,6 +224,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                 }}
                 onImportClick={() => handleImport()}
                 hasWorkout={workouts.length > 0}
+                onGoToDiet={() => {}}
+                onAddMeal={() => {}}
             />
         )}
 

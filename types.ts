@@ -35,3 +35,32 @@ export interface UserProfile {
   experience_level: string;
   goal: string;
 }
+
+// Adicione essas interfaces se ainda não existirem
+export interface DailyNutrition {
+  calories: {
+    consumed: number;
+    goal: number;
+  };
+  protein: {
+    consumed: number;
+    goal: number;
+  };
+  carbs: {
+    consumed: number;
+    goal: number;
+  };
+  fat: {
+    consumed: number;
+    goal: number;
+  };
+}
+
+export interface DietPlan {
+  id: string;
+  name: string;
+  description: string;
+  dailyCalories: number;
+  mealsPerDay: number;
+  active: boolean;
+}
