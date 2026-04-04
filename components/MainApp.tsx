@@ -5,8 +5,6 @@ import { Onboarding } from './OnBoarding';
 import { HomeTab } from './HomeTab';
 import { ProfileTab } from './ProfileTab';
 import WebDashboard from './WebDashboard';
-import DashboardDiet from './DashboardDiet';
-import { AddMealModal } from './MealSchedule';
 import { Workout, Suggestion, UserProfile } from '../types';
 import { getWorkoutFromPDF } from '../services/geminiService';
 import { supabase } from '../supaBaseClient';
@@ -18,7 +16,6 @@ import {
   HomeIcon,
   UserIcon,
   ChartBarIcon,
-  AppleIcon
 } from './icons';
 
 export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
@@ -28,8 +25,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const [completedDates, setCompletedDates] = useState<string[]>([]);
   
   // UI & Navegação
-  const [activeTab, setActiveTab] = useState<'home' | 'workout' | 'diet' | 'profile' | 'dashboard'>('home');
-  const [showAddMealModal, setShowAddMealModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'home' | 'workout' | 'profile' | 'dashboard'>('home');
   const [importing, setImporting] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
@@ -265,15 +261,13 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             <HomeTab
                 userProfile={userProfile}
                 workoutName={workouts[currentIdx]?.name}
-                completedCount={completedDates.length}
+                completedDates={completedDates}
                 onStartWorkout={() => {
                     setActiveTab('workout');
                     if(seconds === 0 && !isWorkoutRunning) setIsWorkoutRunning(true);
                 }}
                 onImportClick={() => handleImport()}
                 hasWorkout={workouts.length > 0}
-                onGoToDiet={() => setActiveTab('diet')}
-                onAddMeal={() => setShowAddMealModal(true)}
             />
         )}
 
@@ -351,21 +345,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             />
         )}
 
-        {/* ABA: DIETA */}
-        {activeTab === 'diet' && (
-            <DashboardDiet />
-        )}
-
       </div>
-
-      {/* Modal para adicionar refeição */}
-      {showAddMealModal && (
-        <AddMealModal
-          isOpen={showAddMealModal}
-          onClose={() => setShowAddMealModal(false)}
-          onSave={() => setShowAddMealModal(false)}
-        />
-      )}
 
       {/* MENU INFERIOR (NAVEGAÇÃO) */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.5)] pb-safe">
@@ -384,14 +364,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
          >
             <DumbbellIcon className="w-6 h-6" />
             <span className="text-[10px] font-medium">Treino</span>
-         </button>
-
-         <button
-            onClick={() => setActiveTab('diet')}
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'diet' ? 'text-green-400' : 'text-gray-500'}`}
-         >
-            <AppleIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Dieta</span>
          </button>
 
          <button
