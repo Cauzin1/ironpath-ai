@@ -15,7 +15,7 @@ interface HomeTabProps {
   workoutName?: string;
   completedDates: string[];
   onStartWorkout: () => void;
-  onImportClick: () => void;
+  onImportFile: (file: File) => void;
   hasWorkout: boolean;
 }
 
@@ -24,7 +24,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   workoutName,
   completedDates,
   onStartWorkout,
-  onImportClick,
+  onImportFile,
   hasWorkout,
 }) => {
   const hour = new Date().getHours();
@@ -144,10 +144,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </div>
         </button>
       ) : (
-        <button
-          onClick={onImportClick}
-          className="w-full bg-gray-800 border-2 border-dashed border-gray-600 hover:border-indigo-500/60 hover:bg-gray-800/80 active:scale-95 transition-all rounded-2xl p-5 flex flex-col items-center justify-center gap-3"
-        >
+        <label className="w-full bg-gray-800 border-2 border-dashed border-gray-600 hover:border-indigo-500/60 hover:bg-gray-800/80 active:scale-95 transition-all rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer">
           <div className="bg-gray-700 p-3 rounded-full">
             <UploadIcon className="w-7 h-7 text-gray-400" />
           </div>
@@ -158,7 +155,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <div className="bg-indigo-600/20 border border-indigo-500/30 px-4 py-1.5 rounded-full">
             <span className="text-indigo-300 text-sm font-medium">Selecionar arquivo</span>
           </div>
-        </button>
+          <input
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) onImportFile(f); }}
+          />
+        </label>
       )}
 
       {/* ── Conquistas ────────────────────────────────────────────── */}

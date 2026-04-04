@@ -31,6 +31,7 @@ export interface Suggestion {
 }
 
 export interface UserProfile {
+  name?: string;
   age: number;
   weight: number;
   height: number;

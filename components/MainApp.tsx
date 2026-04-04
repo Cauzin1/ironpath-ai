@@ -10,7 +10,6 @@ import { getWorkoutFromPDF } from '../services/geminiService';
 import { supabase } from '../supaBaseClient';
 import { Session } from '@supabase/supabase-js';
 import {
-  UploadIcon,
   DumbbellIcon,
   ClockIcon,
   HomeIcon,
@@ -95,12 +94,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   }, [workouts, completedDates, currentIdx]);
 
   // Handlers
-  const handleImport = async (file?: File) => {
-    if (!file) {
-        document.getElementById('hidden-file-input')?.click();
-        return;
-    }
-
+  const handleImport = async (file: File) => {
     setImporting(true);
     setImportError(null);
     try {
@@ -225,17 +219,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
       setIsWorkoutRunning(false);
   }, [currentIdx]);
 
-  // Input file escondido para o menu Home
-  const HiddenInput = () => (
-    <input 
-        id="hidden-file-input"
-        type="file" 
-        className="hidden" 
-        accept="application/pdf" 
-        onChange={e => e.target.files?.[0] && handleImport(e.target.files[0])} 
-    />
-  );
-
   // --- RENDERIZAÇÃO ---
 
   if (checkingProfile) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Carregando...</div>;
@@ -243,8 +226,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
 
   return (
     <div className="min-h-screen bg-gray-900 pb-20 pb-safe relative">
-      <HiddenInput />
-      
       {/* Loading Overlay */}
       {importing && (
           <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center text-white p-6 text-center">
@@ -266,7 +247,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                     setActiveTab('workout');
                     if(seconds === 0 && !isWorkoutRunning) setIsWorkoutRunning(true);
                 }}
-                onImportClick={() => handleImport()}
+                onImportFile={(file) => handleImport(file)}
                 hasWorkout={workouts.length > 0}
             />
         )}
@@ -303,7 +284,10 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                     {workouts.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[50vh] text-center">
                             <p className="text-gray-400 mb-4">Nenhum treino carregado.</p>
-                            <button onClick={() => handleImport()} className="bg-indigo-600 px-6 py-3 rounded-xl text-white font-bold">Importar PDF</button>
+                            <label className="bg-indigo-600 px-6 py-3 rounded-xl text-white font-bold cursor-pointer hover:bg-indigo-500 transition-colors">
+                                Importar PDF
+                                <input type="file" accept="application/pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImport(f); }} />
+                            </label>
                         </div>
                     ) : (
                         (() => {

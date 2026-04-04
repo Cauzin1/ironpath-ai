@@ -9,6 +9,7 @@ interface OnboardingProps {
 
 export const Onboarding: React.FC<OnboardingProps> = ({ userId, onComplete }) => {
   const [formData, setFormData] = useState({
+    name: '',
     age: '',
     weight: '',
     height: '',
@@ -24,6 +25,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ userId, onComplete }) =>
 
     const { error } = await supabase.from('profiles').insert({
       user_id: userId,
+      name: formData.name.trim() || null,
       age: parseInt(formData.age),
       weight: parseFloat(formData.weight),
       height: parseFloat(formData.height),
@@ -56,7 +58,12 @@ export const Onboarding: React.FC<OnboardingProps> = ({ userId, onComplete }) =>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-gray-800 border border-gray-700 rounded-2xl p-6 space-y-5 shadow-2xl">
-          
+
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nome</label>
+            <input name="name" type="text" required placeholder="Seu nome" onChange={handleChange} className="w-full bg-gray-900 border border-gray-600 rounded-xl p-3 text-white focus:border-indigo-500 outline-none" />
+          </div>
+
           <div className="grid grid-cols-2 xs:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Idade</label>
