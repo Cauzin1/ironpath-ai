@@ -1,46 +1,42 @@
-@import "tailwindcss";
-
-/* ── Fontes ──────────────────────────────────────────────────────────────── */
-@theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --breakpoint-xs: 375px;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* ── Safe area utilities (notch / Dynamic Island) ────────────────────────── */
-@utility pt-safe {
-  padding-top: env(safe-area-inset-top);
-}
-@utility pb-safe {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-@utility pl-safe {
-  padding-left: env(safe-area-inset-left);
-}
-@utility pr-safe {
-  padding-right: env(safe-area-inset-right);
-}
-@utility mb-safe {
-  margin-bottom: env(safe-area-inset-bottom);
-}
+@layer utilities {
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right);
+  }
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
 
-/* Esconde scrollbar mantendo scroll funcional */
-@utility scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
-}
 
-/* ── Animações ───────────────────────────────────────────────────────────── */
-@utility animate-fade-in {
-  animation: fadeIn 0.25s ease-out forwards;
-}
-@utility animate-fade-in-up {
-  animation: fadeInUp 0.4s ease-out forwards;
-}
-@utility animate-bounce-short {
-  animation: bounceShort 0.6s ease-in-out;
+  .animate-fade-in {
+    animation: fadeIn 0.25s ease-out forwards;
+  }
+  .animate-fade-in-up {
+    animation: fadeInUp 0.4s ease-out forwards;
+  }
+  .animate-bounce-short {
+    animation: bounceShort 0.6s ease-in-out;
+  }
 }
 
 @keyframes fadeIn {
@@ -60,35 +56,34 @@
 }
 
 /* ── Base global ─────────────────────────────────────────────────────────── */
-html {
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
 
-body {
-  background-color: #111827;
-  color: #ffffff;
-  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  padding-top: env(safe-area-inset-top);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-  overscroll-behavior-y: none;
-}
+  body {
+    background-color: #111827;
+    color: #ffffff;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    overscroll-behavior-y: none;
+  }
 
-/* Font-size mínimo 16px em inputs para evitar zoom automático no iOS */
-input,
-select,
-textarea {
-  font-size: max(16px, 1em);
-}
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
 
-/* Remove tap highlight azul em mobile */
-* {
-  -webkit-tap-highlight-color: transparent;
-}
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
 
-/* Scroll suave em iOS */
-.overflow-y-auto,
-.overflow-y-scroll {
-  -webkit-overflow-scrolling: touch;
+  .overflow-y-auto,
+  .overflow-y-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
 }
