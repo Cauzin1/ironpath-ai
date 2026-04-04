@@ -324,7 +324,11 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             <ProfileTab 
                 profile={userProfile} 
                 email={session.user.email} 
-                onLogout={() => supabase.auth.signOut().then(({ error }) => { if (error) throw error; })} 
+                onLogout={async () => {
+                    const { error } = await supabase.auth.signOut();
+                    if (error) throw error;
+                    window.location.href = '/';
+                }} 
             />
         )}
 
