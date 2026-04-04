@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, FileState } from "@google/genai";
 import { Workout, Suggestion, Exercise, UserProfile } from '../types';
 
 const API_KEY = process.env.API_KEY;
@@ -167,28 +167,54 @@ export const getAIWorkoutSuggestions = async (
   }
 };
 
-export const getWorkoutFromPDF = async (pdfData: string): Promise<Workout[]> => {
+export const getWorkoutFromPDF = async (pdfBase64: string): Promise<Workout[]> => {
+  let uploadedFileName: string | undefined;
+
   try {
-    const prompt = `
-      Analise o PDF de ficha de treino fornecido. Identifique os diferentes dias/divisões de treino (ex: Treino A, Treino B, Push, Pull, Legs).
-      Para cada dia, extraia todos os exercícios com número de séries e repetições.
-      Se um exercício tiver faixas (ex: "3-4 séries" ou "8-12 reps"), use o valor médio.
-      Retorne APENAS o JSON sem texto explicativo.
-    `;
+    // Convert base64 → Blob so we can use the Files API
+    const binary = atob(pdfBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+
+    // Upload via Files API (avoids inline-data permission restrictions)
+    const uploaded = await ai.files.upload({
+      file: blob,
+      config: { mimeType: 'application/pdf', displayName: 'workout.pdf' },
+    });
+    uploadedFileName = uploaded.name;
+
+    // Poll until the file is ready
+    let fileInfo = uploaded;
+    let attempts = 0;
+    while (fileInfo.state === FileState.PROCESSING && attempts < 20) {
+      await new Promise(r => setTimeout(r, 2000));
+      fileInfo = await ai.files.get({ name: uploadedFileName! });
+      attempts++;
+    }
+
+    if (fileInfo.state !== FileState.ACTIVE) {
+      throw new Error(`Arquivo não ficou pronto (estado: ${fileInfo.state}).`);
+    }
+
+    const prompt = `Analise o PDF de ficha de treino fornecido. Identifique os diferentes dias/divisões de treino (ex: Treino A, Treino B, Push, Pull, Legs).
+Para cada dia, extraia todos os exercícios com número de séries e repetições.
+Se um exercício tiver faixas (ex: "3-4 séries" ou "8-12 reps"), use o valor médio.
+Retorne APENAS o JSON sem texto explicativo.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: 'gemini-2.5-flash',
       contents: [
         {
           role: 'user',
           parts: [
             { text: prompt },
-            { inlineData: { mimeType: 'application/pdf', data: pdfData } },
+            { fileData: { mimeType: 'application/pdf', fileUri: fileInfo.uri! } },
           ],
         },
       ],
       config: {
-        responseMimeType: "application/json",
+        responseMimeType: 'application/json',
         responseSchema: pdfParserSchema,
       },
     });
@@ -215,7 +241,12 @@ export const getWorkoutFromPDF = async (pdfData: string): Promise<Workout[]> => 
 
   } catch (error: any) {
     const msg = error?.message ?? String(error);
-    console.error("Erro ao processar PDF:", msg);
+    console.error('Erro ao processar PDF:', msg);
     throw new Error(`Falha ao ler o PDF: ${msg}`);
+  } finally {
+    // Always clean up the uploaded file
+    if (uploadedFileName) {
+      ai.files.delete({ name: uploadedFileName }).catch(() => {});
+    }
   }
 };
