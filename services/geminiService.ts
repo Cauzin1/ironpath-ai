@@ -178,19 +178,25 @@ export const getWorkoutFromPDF = async (pdfData: string): Promise<Workout[]> => 
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: {
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: 'application/pdf', data: pdfData } },
-        ],
-      },
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: 'application/pdf', data: pdfData } },
+          ],
+        },
+      ],
       config: {
         responseMimeType: "application/json",
         responseSchema: pdfParserSchema,
       },
     });
 
-    const parsedWorkouts = JSON.parse(response.text.trim());
+    const raw = response.text ?? '';
+    if (!raw.trim()) throw new Error('Resposta vazia da IA.');
+
+    const parsedWorkouts = JSON.parse(raw.trim());
 
     let idCounter = 1;
     return parsedWorkouts.map((w: any) => ({
@@ -207,8 +213,9 @@ export const getWorkoutFromPDF = async (pdfData: string): Promise<Workout[]> => 
       })),
     }));
 
-  } catch (error) {
-    console.error("Erro ao processar PDF:", error);
-    throw new Error("Não foi possível ler o PDF. Verifique se o arquivo está em um formato suportado.");
+  } catch (error: any) {
+    const msg = error?.message ?? String(error);
+    console.error("Erro ao processar PDF:", msg);
+    throw new Error(`Falha ao ler o PDF: ${msg}`);
   }
 };

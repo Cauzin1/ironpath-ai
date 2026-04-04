@@ -116,9 +116,10 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             completed_dates: completedDates,
             current_workout_index: 0
           });
-        } catch (innerErr) {
-          console.error('Erro ao processar PDF:', innerErr);
-          setImportError('Não foi possível ler o PDF. Verifique se é um arquivo válido.');
+        } catch (innerErr: any) {
+          const msg = innerErr?.message ?? 'Erro desconhecido.';
+          console.error('Erro ao processar PDF:', msg);
+          setImportError(msg);
         } finally {
           setImporting(false);
         }
@@ -234,6 +235,18 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
           </div>
       )}
 
+      {/* Error Toast (global, visible in any tab) */}
+      {importError && (
+          <div className="fixed top-4 left-4 right-4 z-50 flex items-start justify-between bg-red-900/90 border border-red-700/60 rounded-xl p-4 shadow-xl backdrop-blur">
+              <p className="text-red-200 text-sm font-medium flex-1 leading-snug">{importError}</p>
+              <button
+                  onClick={() => setImportError(null)}
+                  className="ml-3 text-red-400 hover:text-white text-xl leading-none font-bold flex-shrink-0"
+                  aria-label="Fechar"
+              >×</button>
+          </div>
+      )}
+
       {/* RENDERIZAÇÃO DAS TELAS (TABS) */}
       <div className="max-w-md mx-auto pt-safe-top">
         
@@ -267,20 +280,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                 </div>
 
                 <div className="p-4">
-                    {/* Import error banner */}
-                    {importError && (
-                        <div className="mb-4 flex items-start justify-between bg-red-900/30 border border-red-700/50 rounded-xl p-3">
-                            <p className="text-red-400 text-sm font-medium flex-1">{importError}</p>
-                            <button
-                                onClick={() => setImportError(null)}
-                                className="ml-3 text-red-500 hover:text-red-300 text-lg leading-none font-bold"
-                                aria-label="Fechar"
-                            >
-                                ×
-                            </button>
-                        </div>
-                    )}
-
                     {workouts.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[50vh] text-center">
                             <p className="text-gray-400 mb-4">Nenhum treino carregado.</p>
@@ -325,7 +324,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             <ProfileTab 
                 profile={userProfile} 
                 email={session.user.email} 
-                onLogout={() => supabase.auth.signOut()} 
+                onLogout={() => supabase.auth.signOut().then(({ error }) => { if (error) throw error; })} 
             />
         )}
 

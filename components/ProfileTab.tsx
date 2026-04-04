@@ -1,16 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import { UserIcon } from './icons';
 
 interface ProfileTabProps {
   profile: UserProfile;
   email?: string;
-  onLogout: () => void;
+  onLogout: () => Promise<any>;
 }
 
 export const ProfileTab: React.FC<ProfileTabProps> = ({ profile, email, onLogout }) => {
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await onLogout();
+    } catch {
+      setLoggingOut(false);
+    }
+  };
+
   return (
-    <div className="p-6 space-y-8 animate-fade-in">
+    <div className="p-6 space-y-8 animate-fade-in pb-32">
       <div className="flex flex-col items-center mt-8">
         <div className="w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center border-4 border-gray-700 shadow-2xl mb-4">
             <UserIcon className="w-10 h-10 text-gray-400" />
@@ -38,11 +49,12 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ profile, email, onLogout
         </div>
       </div>
 
-      <button 
-        onClick={onLogout}
-        className="w-full bg-red-900/20 border border-red-900/50 text-red-400 font-bold py-4 rounded-xl hover:bg-red-900/40 transition-colors"
+      <button
+        onClick={handleLogout}
+        disabled={loggingOut}
+        className="w-full bg-red-900/20 border border-red-900/50 text-red-400 font-bold py-4 rounded-xl hover:bg-red-900/40 transition-colors disabled:opacity-50"
       >
-        Sair da Conta
+        {loggingOut ? 'Saindo...' : 'Sair da Conta'}
       </button>
     </div>
   );
