@@ -2,6 +2,7 @@ export interface HistoryEntry {
   date: string;
   weight: number;
   reps: number;
+  rpe?: number; // Percepção de Esforço: 1 (fácil) a 10 (falha)
 }
 
 export interface Exercise {
@@ -11,7 +12,8 @@ export interface Exercise {
   reps: number;
   currentWeight: number;
   completedSets: number[]; // Array de índices (ex: [0, 1, 2])
-  isFinished: boolean;     // NOVO CAMPO: Controla se o exercício foi finalizado/colapsado
+  isFinished: boolean;     // Controla se o exercício foi finalizado/colapsado
+  rpe?: number;            // Percepção de Esforço da sessão atual: 1-10
   history: HistoryEntry[];
 }
 
@@ -24,6 +26,7 @@ export interface Suggestion {
   exerciseId: number;
   exerciseName: string;
   suggestedWeight: number;
+  currentWeight?: number; // Carga usada na sessão atual (para mostrar o delta)
   message: string;
 }
 

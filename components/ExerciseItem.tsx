@@ -7,15 +7,31 @@ interface ExerciseItemProps {
   onWeightChange: (exerciseId: number, weight: number) => void;
   onSetToggle: (exerciseId: number, setIndex: number) => void;
   onFinishExercise: (exerciseId: number) => void;
+  onRpeChange: (exerciseId: number, rpe: number) => void;
   isWorkoutFinished: boolean;
 }
 
-export const ExerciseItem: React.FC<ExerciseItemProps> = ({ 
-  exercise, 
-  onWeightChange, 
-  onSetToggle, 
+const rpeColor = (rpe: number) => {
+  if (rpe <= 4) return 'bg-green-600 border-green-500 text-white';
+  if (rpe <= 7) return 'bg-yellow-600 border-yellow-500 text-white';
+  return 'bg-red-600 border-red-500 text-white';
+};
+
+const rpeLabel = (rpe: number) => {
+  if (rpe <= 3) return 'Leve';
+  if (rpe <= 5) return 'Moderado';
+  if (rpe <= 7) return 'Desafiador';
+  if (rpe <= 9) return 'Muito difícil';
+  return 'Falha';
+};
+
+export const ExerciseItem: React.FC<ExerciseItemProps> = ({
+  exercise,
+  onWeightChange,
+  onSetToggle,
   onFinishExercise,
-  isWorkoutFinished 
+  onRpeChange,
+  isWorkoutFinished
 }) => {
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
   const allSetsCompleted = exercise.completedSets.length === exercise.sets;
@@ -23,19 +39,49 @@ export const ExerciseItem: React.FC<ExerciseItemProps> = ({
   // --- ESTADO: EXERCÍCIO FINALIZADO ---
   if (exercise.isFinished) {
     return (
-      <div className="bg-green-900/20 border border-green-500/30 rounded-xl p-4 mb-3 flex justify-between items-center shadow-sm animate-fade-in">
-        <div className="flex items-center space-x-4">
-           <button onClick={() => onFinishExercise(exercise.id)} className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white shadow-glow hover:bg-green-400 transition-colors">
-            <CheckIcon className="w-5 h-5" />
+      <div className="bg-green-900/20 border border-green-500/30 rounded-xl p-4 mb-3 shadow-sm animate-fade-in">
+        <div className="flex justify-between items-center mb-3">
+          <div className="flex items-center space-x-3">
+            <button onClick={() => onFinishExercise(exercise.id)} className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white hover:bg-green-400 transition-colors">
+              <CheckIcon className="w-5 h-5" />
+            </button>
+            <div>
+              <h3 className="font-bold text-gray-200 line-through decoration-gray-500">{exercise.name}</h3>
+              <p className="text-xs text-green-400 font-medium">
+                {exercise.currentWeight}kg · {exercise.completedSets.length}/{exercise.sets} séries
+                {exercise.rpe != null && (
+                  <span className="ml-2 text-yellow-400">RPE {exercise.rpe}</span>
+                )}
+              </p>
+            </div>
+          </div>
+          <button onClick={() => onFinishExercise(exercise.id)} className="text-xs font-bold text-gray-500 border border-gray-600 px-3 py-1.5 rounded-lg hover:text-white hover:border-white transition-colors">
+            Editar
           </button>
-          <div>
-            <h3 className="font-bold text-gray-200 line-through decoration-gray-500">{exercise.name}</h3>
-            <p className="text-xs text-green-400 font-medium">Finalizado</p>
+        </div>
+
+        {/* Seletor de RPE */}
+        <div className="pl-11">
+          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-2">
+            Esforço percebido (RPE)
+            {exercise.rpe != null && <span className="ml-2 normal-case font-normal text-yellow-400">— {rpeLabel(exercise.rpe)}</span>}
+          </p>
+          <div className="flex space-x-1.5">
+            {[1,2,3,4,5,6,7,8,9,10].map(n => (
+              <button
+                key={n}
+                onClick={() => onRpeChange(exercise.id, n)}
+                className={`w-7 h-7 rounded-lg border text-xs font-bold transition-all active:scale-90 ${
+                  exercise.rpe === n
+                    ? rpeColor(n)
+                    : 'bg-gray-800 border-gray-600 text-gray-500 hover:border-gray-400'
+                }`}
+              >
+                {n}
+              </button>
+            ))}
           </div>
         </div>
-        <button onClick={() => onFinishExercise(exercise.id)} className="text-xs font-bold text-gray-500 border border-gray-600 px-3 py-1.5 rounded-lg hover:text-white hover:border-white transition-colors">
-          Editar
-        </button>
       </div>
     );
   }

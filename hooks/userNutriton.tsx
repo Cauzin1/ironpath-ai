@@ -51,8 +51,12 @@ export const useNutritionData = () => {
         // 1. Obter usuário
         const { data: userData } = await supabase.auth.getUser();
         const userId = userData.user?.id;
-        
-        if (!userId || !isMounted.current) return;
+
+        if (!isMounted.current) return;
+        if (!userId) {
+          setLoading(false);
+          return;
+        }
 
         // 2. Buscar TUDO de uma vez com fallbacks
         const todayDate = new Date().toISOString().split('T')[0];

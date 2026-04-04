@@ -11,18 +11,20 @@ interface WPProps {
   onUpdateWeight: (id: number, w: number) => void;
   onToggleSet: (id: number, s: number) => void;
   onFinishExercise: (id: number) => void;
+  onRpeChange: (id: number, rpe: number) => void;
   onWorkoutComplete: () => void;
   onNewWorkout: (s: Suggestion[]) => void;
 }
 
-export const WorkoutPlanner: React.FC<WPProps> = ({ 
-  workout, 
+export const WorkoutPlanner: React.FC<WPProps> = ({
+  workout,
   userProfile,
-  onUpdateWeight, 
-  onToggleSet, 
-  onFinishExercise, 
-  onWorkoutComplete, 
-  onNewWorkout 
+  onUpdateWeight,
+  onToggleSet,
+  onFinishExercise,
+  onRpeChange,
+  onWorkoutComplete,
+  onNewWorkout
 }) => {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -44,7 +46,7 @@ export const WorkoutPlanner: React.FC<WPProps> = ({
     try {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       
-      const sugs = await getAIWorkoutSuggestions(workout);
+      const sugs = await getAIWorkoutSuggestions(workout, userProfile);
       
       // CORREÇÃO: Verificação mais robusta
       if (!sugs || !Array.isArray(sugs) || sugs.length === 0) {
@@ -125,12 +127,13 @@ export const WorkoutPlanner: React.FC<WPProps> = ({
 
       {/* Se NÃO finalizou, mostra a lista para preencher. Se finalizou, esconde para focar no resultado */}
       {!finished && (
-          <ExerciseList 
-            exercises={workout.exercises} 
-            onWeightChange={onUpdateWeight} 
-            onSetToggle={onToggleSet} 
-            onFinishExercise={onFinishExercise} 
-            isWorkoutFinished={finished} 
+          <ExerciseList
+            exercises={workout.exercises}
+            onWeightChange={onUpdateWeight}
+            onSetToggle={onToggleSet}
+            onFinishExercise={onFinishExercise}
+            onRpeChange={onRpeChange}
+            isWorkoutFinished={finished}
           />
       )}
       

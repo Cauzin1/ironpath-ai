@@ -4,19 +4,21 @@ import { Menu } from './Menu';
 import { Onboarding } from './OnBoarding';
 import { HomeTab } from './HomeTab';
 import { ProfileTab } from './ProfileTab';
-import WebDashboard from './WebDashboard'; // CORREÇÃO: Importar WebDashboard
+import WebDashboard from './WebDashboard';
+import DashboardDiet from './DashboardDiet';
+import { AddMealModal } from './MealSchedule';
 import { Workout, Suggestion, UserProfile } from '../types';
 import { getWorkoutFromPDF } from '../services/geminiService';
 import { supabase } from '../supaBaseClient';
 import { Session } from '@supabase/supabase-js';
-import { 
-  UploadIcon, 
-  DumbbellIcon, 
-  ClockIcon, 
-  HomeIcon, 
-  UserIcon, 
-  HistoryIcon,
-  ChartBarIcon
+import {
+  UploadIcon,
+  DumbbellIcon,
+  ClockIcon,
+  HomeIcon,
+  UserIcon,
+  ChartBarIcon,
+  AppleIcon
 } from './icons';
 
 export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
@@ -26,7 +28,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const [completedDates, setCompletedDates] = useState<string[]>([]);
   
   // UI & Navegação
-  const [activeTab, setActiveTab] = useState<'home' | 'workout' | 'history' | 'profile' | 'dashboard'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'workout' | 'diet' | 'profile' | 'dashboard'>('home');
+  const [showAddMealModal, setShowAddMealModal] = useState(false);
   const [importing, setImporting] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
@@ -157,6 +160,16 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
     });
   }, [currentIdx]);
 
+  const updateRpe = useCallback((id: number, rpe: number) => {
+    setWorkouts(prev => {
+        const copy = [...prev];
+        copy[currentIdx].exercises = copy[currentIdx].exercises.map(e =>
+            e.id === id ? { ...e, rpe } : e
+        );
+        return copy;
+    });
+  }, [currentIdx]);
+
   const handleWorkoutComplete = () => {
     setIsWorkoutRunning(false);
     setCompletedDates(p => [...p, new Date().toISOString().split('T')[0]]);
@@ -172,7 +185,16 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                   currentWeight: sug ? sug.suggestedWeight : e.currentWeight,
                   completedSets: [],
                   isFinished: false,
-                  history: [...e.history, { date: new Date().toISOString(), weight: e.currentWeight, reps: e.reps }]
+                  rpe: undefined,
+                  history: [
+                      ...e.history,
+                      {
+                          date: new Date().toISOString(),
+                          weight: e.currentWeight,
+                          reps: e.reps,
+                          rpe: e.rpe,
+                      }
+                  ]
               };
           });
           return copy;
@@ -198,7 +220,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   if (!userProfile) return <Onboarding userId={session.user.id} onComplete={() => window.location.reload()} />;
 
   return (
-    <div className="min-h-screen bg-gray-900 pb-20 relative">
+    <div className="min-h-screen bg-gray-900 pb-20 pb-safe relative">
       <HiddenInput />
       
       {/* Loading Overlay */}
@@ -214,7 +236,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
         
         {/* ABA: HOME (INÍCIO) */}
         {activeTab === 'home' && (
-            <HomeTab 
+            <HomeTab
                 userProfile={userProfile}
                 workoutName={workouts[currentIdx]?.name}
                 completedCount={completedDates.length}
@@ -224,8 +246,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                 }}
                 onImportClick={() => handleImport()}
                 hasWorkout={workouts.length > 0}
-                onGoToDiet={() => {}}
-                onAddMeal={() => {}}
+                onGoToDiet={() => setActiveTab('diet')}
+                onAddMeal={() => setShowAddMealModal(true)}
             />
         )}
 
@@ -252,12 +274,13 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                     ) : (
                         <>
                             <Menu completedDates={completedDates} workouts={workouts} currentWorkoutIndex={currentIdx} onWorkoutSelect={setCurrentIdx} onFileImport={(f) => handleImport(f)} />
-                            <WorkoutPlanner 
-                                workout={workouts[currentIdx]} 
+                            <WorkoutPlanner
+                                workout={workouts[currentIdx]}
                                 userProfile={userProfile}
-                                onUpdateWeight={updateWeight} 
-                                onToggleSet={toggleSet} 
+                                onUpdateWeight={updateWeight}
+                                onToggleSet={toggleSet}
                                 onFinishExercise={handleFinishExercise}
+                                onRpeChange={updateRpe}
                                 onWorkoutComplete={handleWorkoutComplete}
                                 onNewWorkout={applySuggestions}
                             />
@@ -283,28 +306,34 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             />
         )}
 
-        {/* Placeholder para Histórico */}
-        {activeTab === 'history' && (
-            <div className="p-6 text-center text-gray-500 mt-20">
-                <HistoryIcon className="w-12 h-12 mx-auto mb-4 opacity-50"/>
-                <p>Histórico detalhado em breve.</p>
-                <p className="text-xs mt-2">Total de treinos: {completedDates.length}</p>
-            </div>
+        {/* ABA: DIETA */}
+        {activeTab === 'diet' && (
+            <DashboardDiet />
         )}
 
       </div>
 
+      {/* Modal para adicionar refeição */}
+      {showAddMealModal && (
+        <AddMealModal
+          isOpen={showAddMealModal}
+          onClose={() => setShowAddMealModal(false)}
+          onSave={() => setShowAddMealModal(false)}
+        />
+      )}
+
       {/* MENU INFERIOR (NAVEGAÇÃO) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 h-20 pb-safe-bottom flex justify-around items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.5)]">
-         <button 
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.5)] pb-safe">
+        <div className="h-16 flex justify-around items-center">
+         <button
             onClick={() => setActiveTab('home')}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'home' ? 'text-white' : 'text-gray-500'}`}
          >
             <HomeIcon className="w-6 h-6" />
             <span className="text-[10px] font-medium">Início</span>
          </button>
-         
-         <button 
+
+         <button
             onClick={() => setActiveTab('workout')}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'workout' ? 'text-indigo-400' : 'text-gray-500'}`}
          >
@@ -312,7 +341,15 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             <span className="text-[10px] font-medium">Treino</span>
          </button>
 
-         <button 
+         <button
+            onClick={() => setActiveTab('diet')}
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'diet' ? 'text-green-400' : 'text-gray-500'}`}
+         >
+            <AppleIcon className="w-6 h-6" />
+            <span className="text-[10px] font-medium">Dieta</span>
+         </button>
+
+         <button
             onClick={() => setActiveTab('dashboard')}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'dashboard' ? 'text-emerald-400' : 'text-gray-500'}`}
          >
@@ -320,21 +357,14 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             <span className="text-[10px] font-medium">Progresso</span>
          </button>
 
-         <button 
-            onClick={() => setActiveTab('history')}
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'history' ? 'text-white' : 'text-gray-500'}`}
-         >
-            <HistoryIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Histórico</span>
-         </button>
-         
-         <button 
+         <button
             onClick={() => setActiveTab('profile')}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'profile' ? 'text-white' : 'text-gray-500'}`}
          >
             <UserIcon className="w-6 h-6" />
             <span className="text-[10px] font-medium">Perfil</span>
          </button>
+        </div>
       </div>
     </div>
   );
