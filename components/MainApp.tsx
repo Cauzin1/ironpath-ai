@@ -38,6 +38,15 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const [isWorkoutRunning, setIsWorkoutRunning] = useState(false);
   const [seconds, setSeconds] = useState(0);
 
+  // Import error banner
+  const [importError, setImportError] = useState<string | null>(null);
+
+  // Local date helper (avoids UTC offset issues)
+  const getLocalDateString = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   // Timer Logic
   useEffect(() => {
     let interval: any;
@@ -97,29 +106,40 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
     }
 
     setImporting(true);
+    setImportError(null);
     try {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
-         const b64 = (reader.result as string).split(',')[1];
-         const newW = await getWorkoutFromPDF(b64);
-         setWorkouts(newW);
-         setCurrentIdx(0);
-         setSeconds(0);
-         setIsWorkoutRunning(false);
-         setActiveTab('workout');
-         
-         await supabase.from('user_progress').upsert({
+        try {
+          const b64 = (reader.result as string).split(',')[1];
+          const newW = await getWorkoutFromPDF(b64);
+          setWorkouts(newW);
+          setCurrentIdx(0);
+          setSeconds(0);
+          setIsWorkoutRunning(false);
+          setActiveTab('workout');
+
+          await supabase.from('user_progress').upsert({
             user_id: session.user.id,
             workouts: newW,
             completed_dates: completedDates,
             current_workout_index: 0
-         });
-         setImporting(false);
-      }
-    } catch (e) { 
-      alert("Erro ao importar"); 
-      setImporting(false); 
+          });
+        } catch (innerErr) {
+          console.error('Erro ao processar PDF:', innerErr);
+          setImportError('Não foi possível ler o PDF. Verifique se é um arquivo válido.');
+        } finally {
+          setImporting(false);
+        }
+      };
+      reader.onerror = () => {
+        setImportError('Não foi possível ler o PDF. Verifique se é um arquivo válido.');
+        setImporting(false);
+      };
+    } catch (e) {
+      setImportError('Não foi possível ler o PDF. Verifique se é um arquivo válido.');
+      setImporting(false);
     }
   };
 
@@ -127,7 +147,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const updateWeight = useCallback((id: number, w: number) => {
     setWorkouts(prev => {
         const copy = [...prev];
-        copy[currentIdx].exercises = copy[currentIdx].exercises.map(e => e.id === id ? {...e, currentWeight: w} : e);
+        const idx = Math.min(currentIdx, copy.length - 1);
+        copy[idx].exercises = copy[idx].exercises.map(e => e.id === id ? {...e, currentWeight: w} : e);
         return copy;
     });
   }, [currentIdx]);
@@ -135,10 +156,11 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const toggleSet = useCallback((id: number, s: number) => {
     setWorkouts(prev => {
         const copy = [...prev];
-        copy[currentIdx].exercises = copy[currentIdx].exercises.map(e => {
+        const idx = Math.min(currentIdx, copy.length - 1);
+        copy[idx].exercises = copy[idx].exercises.map(e => {
             if (e.id === id) {
-                const completed = e.completedSets.includes(s) 
-                    ? e.completedSets.filter(x => x !== s) 
+                const completed = e.completedSets.includes(s)
+                    ? e.completedSets.filter(x => x !== s)
                     : [...e.completedSets, s];
                 completed.sort((a,b) => a-b);
                 return {...e, completedSets: completed};
@@ -152,7 +174,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const handleFinishExercise = useCallback((id: number) => {
     setWorkouts(prev => {
         const copy = [...prev];
-        copy[currentIdx].exercises = copy[currentIdx].exercises.map(e => {
+        const idx = Math.min(currentIdx, copy.length - 1);
+        copy[idx].exercises = copy[idx].exercises.map(e => {
             if (e.id === id) return { ...e, isFinished: !e.isFinished };
             return e;
         });
@@ -163,7 +186,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const updateRpe = useCallback((id: number, rpe: number) => {
     setWorkouts(prev => {
         const copy = [...prev];
-        copy[currentIdx].exercises = copy[currentIdx].exercises.map(e =>
+        const idx = Math.min(currentIdx, copy.length - 1);
+        copy[idx].exercises = copy[idx].exercises.map(e =>
             e.id === id ? { ...e, rpe } : e
         );
         return copy;
@@ -172,13 +196,15 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
 
   const handleWorkoutComplete = () => {
     setIsWorkoutRunning(false);
-    setCompletedDates(p => [...p, new Date().toISOString().split('T')[0]]);
+    const today = getLocalDateString();
+    setCompletedDates(p => p.includes(today) ? p : [...p, today]);
   };
 
   const applySuggestions = useCallback((sugs: Suggestion[]) => {
       setWorkouts(prev => {
           const copy = [...prev];
-          copy[currentIdx].exercises = copy[currentIdx].exercises.map(e => {
+          const idx = Math.min(currentIdx, copy.length - 1);
+          copy[idx].exercises = copy[idx].exercises.map(e => {
               const sug = sugs.find(s => s.exerciseId === e.id);
               return {
                   ...e,
@@ -189,7 +215,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                   history: [
                       ...e.history,
                       {
-                          date: new Date().toISOString(),
+                          date: getLocalDateString(),
                           weight: e.currentWeight,
                           reps: e.reps,
                           rpe: e.rpe,
@@ -266,25 +292,44 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                 </div>
 
                 <div className="p-4">
+                    {/* Import error banner */}
+                    {importError && (
+                        <div className="mb-4 flex items-start justify-between bg-red-900/30 border border-red-700/50 rounded-xl p-3">
+                            <p className="text-red-400 text-sm font-medium flex-1">{importError}</p>
+                            <button
+                                onClick={() => setImportError(null)}
+                                className="ml-3 text-red-500 hover:text-red-300 text-lg leading-none font-bold"
+                                aria-label="Fechar"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    )}
+
                     {workouts.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[50vh] text-center">
                             <p className="text-gray-400 mb-4">Nenhum treino carregado.</p>
                             <button onClick={() => handleImport()} className="bg-indigo-600 px-6 py-3 rounded-xl text-white font-bold">Importar PDF</button>
                         </div>
                     ) : (
-                        <>
-                            <Menu completedDates={completedDates} workouts={workouts} currentWorkoutIndex={currentIdx} onWorkoutSelect={setCurrentIdx} onFileImport={(f) => handleImport(f)} />
-                            <WorkoutPlanner
-                                workout={workouts[currentIdx]}
-                                userProfile={userProfile}
-                                onUpdateWeight={updateWeight}
-                                onToggleSet={toggleSet}
-                                onFinishExercise={handleFinishExercise}
-                                onRpeChange={updateRpe}
-                                onWorkoutComplete={handleWorkoutComplete}
-                                onNewWorkout={applySuggestions}
-                            />
-                        </>
+                        (() => {
+                            const safeIdx = Math.min(currentIdx, workouts.length - 1);
+                            return (
+                                <>
+                                    <Menu completedDates={completedDates} workouts={workouts} currentWorkoutIndex={safeIdx} onWorkoutSelect={setCurrentIdx} onFileImport={(f) => handleImport(f)} />
+                                    <WorkoutPlanner
+                                        workout={workouts[safeIdx]}
+                                        userProfile={userProfile}
+                                        onUpdateWeight={updateWeight}
+                                        onToggleSet={toggleSet}
+                                        onFinishExercise={handleFinishExercise}
+                                        onRpeChange={updateRpe}
+                                        onWorkoutComplete={handleWorkoutComplete}
+                                        onNewWorkout={applySuggestions}
+                                    />
+                                </>
+                            );
+                        })()
                     )}
                 </div>
             </>
