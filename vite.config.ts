@@ -8,7 +8,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     server: {
-      port: 5000,
+      port: 3000,
+      host: '0.0.0.0',
+    },
+    preview: {
+      port: 3000,
       host: '0.0.0.0',
     },
     plugins: [
@@ -42,7 +46,8 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          // Cache de assets estáticos (JS, CSS, fonts)
+          skipWaiting: true,
+          clientsClaim: true,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           runtimeCaching: [
             {
