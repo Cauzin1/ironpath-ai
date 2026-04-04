@@ -61,7 +61,10 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   useEffect(() => {
     const loadData = async () => {
       const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', session.user.id).single();
-      if (profile) setUserProfile(profile);
+      if (profile) {
+        const name = session.user.user_metadata?.full_name as string | undefined;
+        setUserProfile({ ...profile, name });
+      }
 
       const { data: progress } = await supabase.from('user_progress').select('*').eq('user_id', session.user.id).single();
       if (progress) {
