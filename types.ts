@@ -19,6 +19,8 @@ export interface Exercise {
 
 export interface Workout {
   name: string;
+  scheduledDays?: string;    // Ex: "Segunda e Quinta"
+  lastPerformedDate?: string; // ISO date do último treino deste dia
   exercises: Exercise[];
 }
 

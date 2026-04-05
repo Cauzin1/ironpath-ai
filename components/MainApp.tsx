@@ -4,6 +4,7 @@ import { Menu } from './Menu';
 import { Onboarding } from './OnBoarding';
 import { HomeTab } from './HomeTab';
 import { ProfileTab } from './ProfileTab';
+import { WorkoutsTab } from './WorkoutsTab';
 import WebDashboard from './WebDashboard';
 import { Workout, Suggestion, UserProfile } from '../types';
 import { getWorkoutFromPDF } from '../services/geminiService';
@@ -15,6 +16,7 @@ import {
   HomeIcon,
   UserIcon,
   ChartBarIcon,
+  ClipboardListIcon,
 } from './icons';
 
 export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
@@ -24,7 +26,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const [completedDates, setCompletedDates] = useState<string[]>([]);
   
   // UI & Navegação
-  const [activeTab, setActiveTab] = useState<'home' | 'workout' | 'profile' | 'dashboard'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'workout' | 'plans' | 'profile' | 'dashboard'>('home');
   const [importing, setImporting] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
@@ -97,7 +99,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   }, [workouts, completedDates, currentIdx]);
 
   // Handlers
-  const handleImport = async (file: File) => {
+  const handleImport = async (file: File, mode: 'replace' | 'append' = 'replace') => {
     setImporting(true);
     setImportError(null);
     try {
@@ -107,17 +109,38 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
         try {
           const b64 = (reader.result as string).split(',')[1];
           const newW = await getWorkoutFromPDF(b64);
-          setWorkouts(newW);
-          setCurrentIdx(0);
-          setSeconds(0);
-          setIsWorkoutRunning(false);
-          setActiveTab('workout');
+
+          let finalWorkouts: Workout[];
+          let finalIdx: number;
+
+          if (mode === 'append' && workouts.length > 0) {
+            // Re-atribui IDs para evitar conflitos
+            const maxId = workouts.reduce(
+              (max, w) => w.exercises.reduce((m, e) => Math.max(m, e.id), max), 0
+            );
+            let idCounter = maxId + 1;
+            const renumbered = newW.map(w => ({
+              ...w,
+              exercises: w.exercises.map(ex => ({ ...ex, id: idCounter++ })),
+            }));
+            finalWorkouts = [...workouts, ...renumbered];
+            finalIdx = currentIdx;
+          } else {
+            finalWorkouts = newW;
+            finalIdx = 0;
+            setSeconds(0);
+            setIsWorkoutRunning(false);
+            setActiveTab('plans');
+          }
+
+          setWorkouts(finalWorkouts);
+          setCurrentIdx(finalIdx);
 
           await supabase.from('user_progress').upsert({
             user_id: session.user.id,
-            workouts: newW,
+            workouts: finalWorkouts,
             completed_dates: completedDates,
-            current_workout_index: 0
+            current_workout_index: finalIdx,
           });
         } catch (innerErr: any) {
           const msg = innerErr?.message ?? 'Erro desconhecido.';
@@ -192,6 +215,13 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
     setIsWorkoutRunning(false);
     const today = getLocalDateString();
     setCompletedDates(p => p.includes(today) ? p : [...p, today]);
+    // Registra qual treino foi feito hoje
+    setWorkouts(prev => {
+      const copy = [...prev];
+      const idx = Math.min(currentIdx, copy.length - 1);
+      copy[idx] = { ...copy[idx], lastPerformedDate: today };
+      return copy;
+    });
   };
 
   const applySuggestions = useCallback((sugs: Suggestion[]) => {
@@ -316,6 +346,19 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             </>
         )}
 
+        {/* ABA: PLANOS (MEUS TREINOS) */}
+        {activeTab === 'plans' && (
+            <WorkoutsTab
+                workouts={workouts}
+                currentWorkoutIndex={workouts.length > 0 ? Math.min(currentIdx, workouts.length - 1) : 0}
+                onImport={handleImport}
+                onSelectAndGo={(index) => {
+                    setCurrentIdx(index);
+                    setActiveTab('workout');
+                }}
+            />
+        )}
+
         {/* ABA: DASHBOARD (PROGRESSO) */}
         {activeTab === 'dashboard' && (
             <div className="p-4">
@@ -355,6 +398,14 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
          >
             <DumbbellIcon className="w-6 h-6" />
             <span className="text-[10px] font-medium">Treino</span>
+         </button>
+
+         <button
+            onClick={() => setActiveTab('plans')}
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'plans' ? 'text-violet-400' : 'text-gray-500'}`}
+         >
+            <ClipboardListIcon className="w-6 h-6" />
+            <span className="text-[10px] font-medium">Planos</span>
          </button>
 
          <button

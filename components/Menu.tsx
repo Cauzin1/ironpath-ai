@@ -30,11 +30,26 @@ const dayInitials = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const getDayISO = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+const getWorkoutAbbr = (name: string): string => {
+  const match = name.match(/Treino\s+(\w+)/i);
+  if (match) return match[1].toUpperCase();
+  const words = name.split(/[\s\-–]+/);
+  return words[0].substring(0, 3).toUpperCase();
+};
+
 export const Menu: React.FC<MenuProps> = ({ completedDates, workouts, currentWorkoutIndex, onWorkoutSelect, onFileImport }) => {
   const weekDays = getWeekDays();
   const todayISO = getDayISO(new Date());
   const completedISODates = new Set(completedDates);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Map de data → abreviação do treino feito naquele dia
+  const workoutByDate = new Map<string, string>();
+  workouts.forEach(w => {
+    if (w.lastPerformedDate) {
+      workoutByDate.set(w.lastPerformedDate, getWorkoutAbbr(w.name));
+    }
+  });
 
   return (
     <div className="space-y-4 mb-6">
@@ -44,14 +59,20 @@ export const Menu: React.FC<MenuProps> = ({ completedDates, workouts, currentWor
           const dayISO = getDayISO(day);
           const isToday = dayISO === todayISO;
           const isCompleted = completedISODates.has(dayISO);
-          
+          const workoutAbbr = workoutByDate.get(dayISO);
+
           return (
             <div key={dayISO} className={`flex flex-col items-center justify-center w-10 h-14 sm:w-14 sm:h-20 rounded-lg transition-all ${isToday ? 'bg-gray-700 ring-1 ring-indigo-500' : 'bg-transparent'}`}>
               <span className={`text-[9px] sm:text-[11px] font-bold mb-1 leading-none ${isToday ? 'text-indigo-400' : 'text-gray-500'}`}>
                 {dayInitials[index]}
               </span>
               <div className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full ${isCompleted ? 'bg-green-500/20 text-green-400' : 'bg-gray-800 text-gray-400'}`}>
-                 {isCompleted ? <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6" /> : <span className="text-sm font-bold">{day.getDate()}</span>}
+                {isCompleted
+                  ? (workoutAbbr
+                      ? <span className="text-[10px] font-black text-green-400">{workoutAbbr}</span>
+                      : <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6" />)
+                  : <span className="text-sm font-bold">{day.getDate()}</span>
+                }
               </div>
             </div>
           );

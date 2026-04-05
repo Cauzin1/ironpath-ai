@@ -100,15 +100,16 @@ const pdfParserSchema = {
   items: {
     type: Type.OBJECT,
     properties: {
-      name: { type: Type.STRING, description: "Nome do dia de treino (ex: 'Treino A - Peito e Tríceps')." },
+      name: { type: Type.STRING, description: "Nome completo do dia de treino (ex: 'Treino A - Peito e Tríceps', 'Push Day', 'Dia 1 - Membros Superiores')." },
+      scheduledDays: { type: Type.STRING, description: "Dias da semana indicados para este treino (ex: 'Segunda e Quinta'). String vazia se não especificado." },
       exercises: {
         type: Type.ARRAY,
         items: {
           type: Type.OBJECT,
           properties: {
-            name: { type: Type.STRING, description: "Nome do exercício (ex: 'Supino Reto')." },
-            sets: { type: Type.NUMBER, description: "Número de séries." },
-            reps: { type: Type.NUMBER, description: "Número de repetições por série." },
+            name: { type: Type.STRING, description: "Nome do exercício (ex: 'Supino Reto com Barra')." },
+            sets: { type: Type.NUMBER, description: "Número de séries. Se faixa (ex: 3-4), use o maior valor (4)." },
+            reps: { type: Type.NUMBER, description: "Número de repetições por série. Se faixa (ex: 8-12), use o maior valor (12)." },
           },
           required: ["name", "sets", "reps"],
         },
@@ -197,10 +198,23 @@ export const getWorkoutFromPDF = async (pdfBase64: string): Promise<Workout[]> =
       throw new Error(`Arquivo não ficou pronto (estado: ${fileInfo.state}).`);
     }
 
-    const prompt = `Analise o PDF de ficha de treino fornecido. Identifique os diferentes dias/divisões de treino (ex: Treino A, Treino B, Push, Pull, Legs).
-Para cada dia, extraia todos os exercícios com número de séries e repetições.
-Se um exercício tiver faixas (ex: "3-4 séries" ou "8-12 reps"), use o valor médio.
-Retorne APENAS o JSON sem texto explicativo.`;
+    const prompt = `Analise este PDF de ficha de treino.
+
+TAREFA: Identificar CADA divisão de treino separadamente e extrair seus exercícios.
+
+COMO IDENTIFICAR DIVISÕES:
+- Procure por cabeçalhos como: "Treino A", "Treino B", "Dia 1", "Dia 2", "Push", "Pull", "Legs", "Upper", "Lower", "Peito", "Costas"
+- Separadores visuais como linhas, caixas, títulos em negrito ou caixa alta também indicam nova divisão
+- Cada divisão identificada deve gerar um objeto SEPARADO no array
+- NUNCA misture exercícios de divisões diferentes no mesmo objeto
+
+COMO EXTRAIR:
+- Para faixas de séries (ex: "3-4"), use o número MAIOR (4)
+- Para faixas de reps (ex: "8-12"), use o número MAIOR (12)
+- Se houver dias da semana indicados para a divisão (ex: "Segunda e Quinta"), preencha scheduledDays
+- Ignore aquecimento, observações, notas e alongamento
+
+Retorne APENAS o JSON, sem texto adicional.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -227,11 +241,12 @@ Retorne APENAS o JSON sem texto explicativo.`;
     let idCounter = 1;
     return parsedWorkouts.map((w: any) => ({
       name: w.name,
+      scheduledDays: w.scheduledDays || '',
       exercises: w.exercises.map((ex: any) => ({
         id: idCounter++,
         name: ex.name,
-        sets: ex.sets,
-        reps: ex.reps,
+        sets: typeof ex.sets === 'number' ? ex.sets : parseInt(ex.sets) || 3,
+        reps: typeof ex.reps === 'number' ? ex.reps : parseInt(ex.reps) || 10,
         currentWeight: 0,
         completedSets: [],
         isFinished: false,
