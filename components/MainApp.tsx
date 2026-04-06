@@ -19,13 +19,19 @@ import {
   UploadIcon,
 } from './icons';
 
-// Extrai abreviação do nome do treino para exibir nos tabs
-const getWorkoutAbbr = (name: string): string => {
-  const match = name.match(/Treino\s+(\w+)/i);
-  if (match) return match[1].toUpperCase();
-  const words = name.split(/[\s\-–]+/);
-  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
-  return words[0].substring(0, 3).toUpperCase();
+// Parte principal do nome (antes do " - " ou " – ")
+const getWorkoutTabMain = (name: string): string => {
+  const dashIdx = name.search(/\s[-–]\s/);
+  const base = dashIdx > 0 ? name.substring(0, dashIdx).trim() : name.trim();
+  return base.length > 14 ? base.substring(0, 13) + '…' : base;
+};
+
+// Grupo muscular (depois do " - "), apenas o primeiro grupo
+const getWorkoutTabSub = (name: string): string => {
+  const match = name.match(/\s[-–]\s(.+)/);
+  if (!match) return '';
+  const muscles = match[1].split(/\s+e\s+/i)[0].trim();
+  return muscles.length > 12 ? muscles.substring(0, 11) + '…' : muscles;
 };
 
 export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
@@ -355,19 +361,29 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                                     {workouts.map((w, idx) => {
                                         const isActive = safeIdx === idx;
                                         const doneInThis = w.exercises.filter(e => e.isFinished).length;
+                                        const allDone = doneInThis === w.exercises.length && w.exercises.length > 0;
+                                        const mainLabel = getWorkoutTabMain(w.name);
+                                        const subLabel = getWorkoutTabSub(w.name);
                                         return (
                                             <button
                                                 key={idx}
                                                 onClick={() => setCurrentIdx(idx)}
-                                                className={`flex-shrink-0 flex flex-col items-center px-4 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                                                className={`flex-shrink-0 flex flex-col items-start px-3 py-2 rounded-xl text-left transition-all border min-w-[90px] ${
                                                     isActive
                                                         ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-900/40'
                                                         : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:text-white hover:bg-gray-700'
                                                 }`}
                                             >
-                                                <span>{getWorkoutAbbr(w.name)}</span>
-                                                {doneInThis > 0 && doneInThis === w.exercises.length && (
-                                                    <span className="text-[9px] text-green-400 mt-0.5">✓</span>
+                                                <span className="text-xs font-bold leading-tight">{mainLabel}</span>
+                                                {subLabel ? (
+                                                    <span className={`text-[10px] leading-tight mt-0.5 ${isActive ? 'text-indigo-200' : 'text-gray-500'}`}>
+                                                        {subLabel}
+                                                    </span>
+                                                ) : allDone ? (
+                                                    <span className="text-[10px] text-green-400 mt-0.5">✓ Feito</span>
+                                                ) : null}
+                                                {subLabel && allDone && (
+                                                    <span className={`text-[10px] mt-0.5 ${isActive ? 'text-green-300' : 'text-green-500'}`}>✓ Feito</span>
                                                 )}
                                             </button>
                                         );
