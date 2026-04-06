@@ -56,11 +56,11 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
   return (
     <div className="p-5 space-y-5 pb-28">
       {/* Header */}
-      <div className="flex justify-between items-center pt-1">
-        <div>
-          <h1 className="text-2xl font-black text-white">Meus Treinos</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{workouts.length} dia{workouts.length !== 1 ? 's' : ''} de treino</p>
-        </div>
+      <div className="pt-1">
+        <h1 className="text-2xl font-black text-white">Meus Treinos</h1>
+        <p className="text-gray-400 text-sm mt-0.5">
+          {workouts.length} divisão{workouts.length !== 1 ? 'ões' : ''} · Selecione um treino para iniciar a sessão
+        </p>
       </div>
 
       {/* Workout day cards */}
@@ -107,18 +107,19 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={() => onSelectAndGo(index)}
-                    className={`p-2 rounded-xl transition-colors ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 ${
                       isActive
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40'
                         : 'bg-gray-700 text-gray-300 hover:bg-indigo-600 hover:text-white'
                     }`}
-                    title="Ir para este treino"
                   >
-                    <PlayIcon className="w-4 h-4" />
+                    <PlayIcon className="w-3.5 h-3.5" />
+                    {isActive ? 'Continuar' : 'Iniciar'}
                   </button>
                   <button
                     onClick={() => setExpandedIndex(isExpanded ? null : index)}
                     className="p-2 rounded-xl bg-gray-700/50 text-gray-400 hover:text-white transition-colors"
+                    title={isExpanded ? 'Recolher' : 'Ver exercícios'}
                   >
                     <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                   </button>
@@ -127,13 +128,19 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
 
               {/* Expanded exercise list */}
               {isExpanded && (
-                <div className="border-t border-gray-700/50 px-4 py-3 space-y-2">
+                <div className="border-t border-gray-700/50 px-4 py-3 space-y-1.5">
                   {workout.exercises.map((ex) => (
                     <div key={ex.id} className="flex justify-between items-center py-1">
-                      <span className="text-gray-300 text-sm">{ex.name}</span>
-                      <span className="text-gray-500 text-xs font-medium ml-3 flex-shrink-0">
-                        {ex.sets}x{ex.reps}
-                      </span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ex.history.length > 0 ? 'bg-green-500' : 'bg-gray-600'}`} />
+                        <span className="text-gray-300 text-sm truncate">{ex.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                        {ex.currentWeight > 0 && (
+                          <span className="text-indigo-400 text-xs font-semibold">{ex.currentWeight}kg</span>
+                        )}
+                        <span className="text-gray-500 text-xs">{ex.sets}×{ex.reps}</span>
+                      </div>
                     </div>
                   ))}
                 </div>

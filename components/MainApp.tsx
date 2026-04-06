@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { WorkoutPlanner } from './WorkoutPlanner';
-import { Menu } from './Menu';
 import { Onboarding } from './OnBoarding';
 import { HomeTab } from './HomeTab';
 import { ProfileTab } from './ProfileTab';
@@ -302,46 +301,77 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
         {/* ABA: TREINO (WORKOUT) */}
         {activeTab === 'workout' && (
             <>
-                {/* Timer (Só aparece na aba de treino) */}
-                <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur border-b border-gray-800 px-4 pb-3 pt-2 flex items-center justify-center shadow-lg">
-                    <div className={`rounded-full px-6 py-1.5 flex items-center space-x-2 border transition-colors
-                        ${isWorkoutRunning ? 'bg-indigo-900/40 border-indigo-500/50 text-indigo-200' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>
-                        <ClockIcon className="w-4 h-4" />
-                        <span className="font-mono font-bold tracking-wide">
-                            {isWorkoutRunning ? formatTime(seconds) : (seconds > 0 ? `Final: ${formatTime(seconds)}` : '0m 0s')}
-                        </span>
+                {/* Header fixo da sessão: nome do treino + timer */}
+                <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur border-b border-gray-800 shadow-lg">
+                    {workouts.length > 0 && (() => {
+                        const safeIdx = Math.min(currentIdx, workouts.length - 1);
+                        const w = workouts[safeIdx];
+                        const doneCount = w.exercises.filter(e => e.isFinished).length;
+                        return (
+                            <div className="px-4 pt-3 pb-1 flex items-center gap-3">
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Sessão ativa</p>
+                                    <p className="text-white font-bold text-sm truncate leading-tight">{w.name}</p>
+                                    {w.scheduledDays && (
+                                        <p className="text-indigo-400 text-[11px] leading-tight mt-0.5">{w.scheduledDays}</p>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    {doneCount > 0 && (
+                                        <span className="text-green-400 text-xs font-bold bg-green-900/30 px-2 py-0.5 rounded-full">
+                                            {doneCount}/{w.exercises.length}
+                                        </span>
+                                    )}
+                                    <button
+                                        onClick={() => setActiveTab('plans')}
+                                        className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 bg-indigo-900/30 border border-indigo-500/30 px-3 py-1 rounded-full transition-colors"
+                                    >
+                                        Mudar
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                    <div className="px-4 pb-2.5 pt-1.5 flex justify-center">
+                        <div className={`rounded-full px-5 py-1.5 flex items-center space-x-2 border transition-colors
+                            ${isWorkoutRunning ? 'bg-indigo-900/40 border-indigo-500/50 text-indigo-200' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>
+                            <ClockIcon className="w-4 h-4" />
+                            <span className="font-mono font-bold tracking-wide text-sm">
+                                {isWorkoutRunning ? formatTime(seconds) : (seconds > 0 ? `Final: ${formatTime(seconds)}` : '0m 0s')}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 <div className="p-4">
                     {workouts.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-[50vh] text-center">
-                            <p className="text-gray-400 mb-4">Nenhum treino carregado.</p>
-                            <label className="bg-indigo-600 px-6 py-3 rounded-xl text-white font-bold cursor-pointer hover:bg-indigo-500 transition-colors">
-                                Importar PDF
-                                <input type="file" accept="application/pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImport(f); }} />
-                            </label>
+                        <div className="flex flex-col items-center justify-center h-[60vh] text-center gap-4">
+                            <div className="bg-gray-800 p-5 rounded-full">
+                                <DumbbellIcon className="w-10 h-10 text-gray-500" />
+                            </div>
+                            <div>
+                                <p className="text-white font-bold text-lg">Nenhum treino ativo</p>
+                                <p className="text-gray-400 text-sm mt-1">Vá em Planos e selecione um treino para iniciar a sessão</p>
+                            </div>
+                            <button
+                                onClick={() => setActiveTab('plans')}
+                                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-3 rounded-xl transition-colors"
+                            >
+                                Ver Planos
+                            </button>
                         </div>
                     ) : (
-                        (() => {
-                            const safeIdx = Math.min(currentIdx, workouts.length - 1);
-                            return (
-                                <>
-                                    <Menu completedDates={completedDates} workouts={workouts} currentWorkoutIndex={safeIdx} onWorkoutSelect={(idx) => { setCurrentIdx(idx); setSeconds(0); setIsWorkoutRunning(true); }} onFileImport={(f) => handleImport(f)} />
-                                    <WorkoutPlanner
-                                        key={safeIdx}
-                                        workout={workouts[safeIdx]}
-                                        userProfile={userProfile}
-                                        onUpdateWeight={updateWeight}
-                                        onToggleSet={toggleSet}
-                                        onFinishExercise={handleFinishExercise}
-                                        onRpeChange={updateRpe}
-                                        onWorkoutComplete={handleWorkoutComplete}
-                                        onNewWorkout={applySuggestions}
-                                    />
-                                </>
-                            );
-                        })()
+                        <WorkoutPlanner
+                            key={Math.min(currentIdx, workouts.length - 1)}
+                            workout={workouts[Math.min(currentIdx, workouts.length - 1)]}
+                            userProfile={userProfile}
+                            onUpdateWeight={updateWeight}
+                            onToggleSet={toggleSet}
+                            onFinishExercise={handleFinishExercise}
+                            onRpeChange={updateRpe}
+                            onWorkoutComplete={handleWorkoutComplete}
+                            onNewWorkout={applySuggestions}
+                        />
                     )}
                 </div>
             </>
