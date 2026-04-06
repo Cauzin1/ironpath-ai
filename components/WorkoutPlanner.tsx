@@ -14,6 +14,7 @@ interface WPProps {
   onRpeChange: (id: number, rpe: number) => void;
   onWorkoutComplete: () => void;
   onNewWorkout: (s: Suggestion[]) => void;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 export const WorkoutPlanner: React.FC<WPProps> = ({
@@ -24,10 +25,16 @@ export const WorkoutPlanner: React.FC<WPProps> = ({
   onFinishExercise,
   onRpeChange,
   onWorkoutComplete,
-  onNewWorkout
+  onNewWorkout,
+  onLoadingChange,
 }) => {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const setLoadingWithNotify = (v: boolean) => {
+    setLoading(v);
+    onLoadingChange?.(v);
+  };
   const [finished, setFinished] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -44,7 +51,7 @@ export const WorkoutPlanner: React.FC<WPProps> = ({
 
   const handleFinish = async () => {
     setShowConfirmModal(false);
-    setLoading(true);
+    setLoadingWithNotify(true);
     onWorkoutComplete();
 
     try {
@@ -97,7 +104,7 @@ export const WorkoutPlanner: React.FC<WPProps> = ({
       setSuggestions(fallback);
       setFinished(true);
     } finally {
-      setLoading(false);
+      setLoadingWithNotify(false);
     }
   };
 

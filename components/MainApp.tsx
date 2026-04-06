@@ -53,6 +53,9 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   // Import error banner
   const [importError, setImportError] = useState<string | null>(null);
 
+  // Estado de análise da IA (persiste quando usuário muda de aba)
+  const [workoutAnalyzing, setWorkoutAnalyzing] = useState(false);
+
   // Local date helper (avoids UTC offset issues)
   const getLocalDateString = () => {
     const d = new Date();
@@ -303,6 +306,20 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
           </div>
       )}
 
+      {/* Banner: IA analisando em background */}
+      {workoutAnalyzing && activeTab !== 'workout' && (
+          <div className="fixed top-4 left-4 right-4 z-50 flex items-center gap-3 bg-indigo-900/95 border border-indigo-500/60 rounded-xl px-4 py-3 shadow-xl backdrop-blur">
+              <div className="w-4 h-4 border-2 border-indigo-300/40 border-t-indigo-300 rounded-full animate-spin flex-shrink-0" />
+              <p className="text-indigo-200 text-sm font-medium flex-1">IA analisando seu treino...</p>
+              <button
+                  onClick={() => setActiveTab('workout')}
+                  className="text-indigo-400 text-xs font-bold hover:text-white transition-colors whitespace-nowrap"
+              >
+                  Ver →
+              </button>
+          </div>
+      )}
+
       {/* Error Toast (global, visible in any tab) */}
       {importError && (
           <div className="fixed top-4 left-4 right-4 z-50 flex items-start justify-between bg-red-900/90 border border-red-700/60 rounded-xl p-4 shadow-xl backdrop-blur">
@@ -330,8 +347,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             />
         )}
 
-        {/* ABA: TREINO (WORKOUT) */}
-        {activeTab === 'workout' && (
+        {/* ABA: TREINO (WORKOUT) — sempre montada para preservar estado de loading/sugestões */}
+        <div className={activeTab === 'workout' ? '' : 'hidden'}>
             <>
                 {/* Header fixo: seletor de dias + timer */}
                 <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur border-b border-gray-800 shadow-lg">
@@ -458,11 +475,12 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                             onRpeChange={updateRpe}
                             onWorkoutComplete={handleWorkoutComplete}
                             onNewWorkout={applySuggestions}
+                            onLoadingChange={setWorkoutAnalyzing}
                         />
                     )}
                 </div>
             </>
-        )}
+        </div>
 
         {/* ABA: PLANOS (MEUS TREINOS) */}
         {activeTab === 'plans' && (
