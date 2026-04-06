@@ -485,7 +485,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                 onLogout={async () => {
                     const { error } = await supabase.auth.signOut();
                     if (error) throw error;
-                    window.location.href = '/';
                 }}
             />
         )}
