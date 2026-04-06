@@ -6,6 +6,8 @@ export interface Achievement {
   description: string;
   icon: string;
   unlocked: boolean;
+  progress: number;  // valor atual
+  target: number;   // valor necessário para desbloquear
 }
 
 /** Returns current streak (consecutive days ending today or yesterday) */
@@ -16,7 +18,6 @@ export function calculateStreak(completedDates: string[]): number {
   const today = getLocalDate();
   const yesterday = offsetDate(today, -1);
 
-  // streak must start from today or yesterday
   if (sorted[0] !== today && sorted[0] !== yesterday) return 0;
 
   let streak = 0;
@@ -59,12 +60,12 @@ export function calculateXP(completedDates: string[]): number {
 /** Level based on XP */
 export function getLevel(xp: number): { level: number; label: string; nextXP: number; currentXP: number } {
   const thresholds = [
-    { level: 1, label: 'Novato', xp: 0 },
-    { level: 2, label: 'Iniciante', xp: 500 },
-    { level: 3, label: 'Atleta', xp: 1500 },
-    { level: 4, label: 'Veterano', xp: 3000 },
-    { level: 5, label: 'Elite', xp: 6000 },
-    { level: 6, label: 'Lenda', xp: 10000 },
+    { level: 1, label: 'Novato',    xp: 0     },
+    { level: 2, label: 'Iniciante', xp: 500   },
+    { level: 3, label: 'Atleta',    xp: 1500  },
+    { level: 4, label: 'Veterano',  xp: 3000  },
+    { level: 5, label: 'Elite',     xp: 6000  },
+    { level: 6, label: 'Lenda',     xp: 10000 },
   ];
 
   let current = thresholds[0];
@@ -86,7 +87,7 @@ export function getLevel(xp: number): { level: number; label: string; nextXP: nu
 /** Count workouts in the current ISO week (Mon–Sun) */
 export function getWeeklyCount(completedDates: string[]): number {
   const today = new Date();
-  const dayOfWeek = today.getDay(); // 0=Sun
+  const dayOfWeek = today.getDay();
   const monday = new Date(today);
   monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
   monday.setHours(0, 0, 0, 0);
@@ -97,40 +98,58 @@ export function getWeeklyCount(completedDates: string[]): number {
   }).length;
 }
 
-/** Achievements list */
+/** Achievements list with real progress tracking */
 export function getAchievements(completedDates: string[]): Achievement[] {
   const total = completedDates.length;
-  const streak = calculateStreak(completedDates);
   const maxStreak = getMaxStreak(completedDates);
 
   return [
+    // ── Treinos totais ──────────────────────────────────
     {
       id: 'first_step',
       label: 'Primeiro Passo',
-      description: 'Complete seu primeiro treino',
+      description: 'Complete seu 1º treino',
       icon: '🏋️',
       unlocked: total >= 1,
+      progress: Math.min(total, 1),
+      target: 1,
     },
     {
-      id: 'one_week',
-      label: 'Uma Semana',
-      description: '7 treinos completados',
-      icon: '📅',
-      unlocked: total >= 7,
+      id: 'ten_workouts',
+      label: 'Ganhando ritmo',
+      description: '10 treinos completados',
+      icon: '💪',
+      unlocked: total >= 10,
+      progress: Math.min(total, 10),
+      target: 10,
     },
     {
       id: 'one_month',
       label: 'Um Mês',
       description: '30 treinos completados',
-      icon: '🏆',
+      icon: '📅',
       unlocked: total >= 30,
+      progress: Math.min(total, 30),
+      target: 30,
     },
+    {
+      id: 'century',
+      label: 'Centurião',
+      description: '100 treinos completados',
+      icon: '🏆',
+      unlocked: total >= 100,
+      progress: Math.min(total, 100),
+      target: 100,
+    },
+    // ── Sequências ──────────────────────────────────────
     {
       id: 'on_fire',
       label: 'Em Chamas',
       description: 'Sequência de 3 dias',
       icon: '🔥',
       unlocked: maxStreak >= 3,
+      progress: Math.min(maxStreak, 3),
+      target: 3,
     },
     {
       id: 'unstoppable',
@@ -138,6 +157,8 @@ export function getAchievements(completedDates: string[]): Achievement[] {
       description: 'Sequência de 7 dias',
       icon: '⚡',
       unlocked: maxStreak >= 7,
+      progress: Math.min(maxStreak, 7),
+      target: 7,
     },
     {
       id: 'machine',
@@ -145,6 +166,17 @@ export function getAchievements(completedDates: string[]): Achievement[] {
       description: 'Sequência de 14 dias',
       icon: '💎',
       unlocked: maxStreak >= 14,
+      progress: Math.min(maxStreak, 14),
+      target: 14,
+    },
+    {
+      id: 'legend_streak',
+      label: 'Lendário',
+      description: 'Sequência de 30 dias',
+      icon: '👑',
+      unlocked: maxStreak >= 30,
+      progress: Math.min(maxStreak, 30),
+      target: 30,
     },
   ];
 }

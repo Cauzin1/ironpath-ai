@@ -166,24 +166,52 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
       {/* ── Conquistas ────────────────────────────────────────────── */}
       <div>
-        <h2 className="text-white font-bold text-base mb-3">Conquistas</h2>
-        <div className="grid grid-cols-3 gap-2">
-          {achievements.map(a => (
-            <div
-              key={a.id}
-              className={`flex flex-col items-center p-3 rounded-xl border text-center transition-all ${
-                a.unlocked
-                  ? 'bg-indigo-900/30 border-indigo-500/40'
-                  : 'bg-gray-800/40 border-gray-700/40 opacity-40 grayscale'
-              }`}
-            >
-              <span className="text-2xl mb-1">{a.icon}</span>
-              <p className={`text-[11px] font-bold leading-tight ${a.unlocked ? 'text-white' : 'text-gray-400'}`}>
-                {a.label}
-              </p>
-              <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{a.description}</p>
-            </div>
-          ))}
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-white font-bold text-base">Conquistas</h2>
+          <span className="text-gray-500 text-xs">
+            {achievements.filter(a => a.unlocked).length}/{achievements.length} desbloqueadas
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {achievements.map(a => {
+            const pct = a.target > 0 ? Math.min((a.progress / a.target) * 100, 100) : 0;
+            return (
+              <div
+                key={a.id}
+                className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                  a.unlocked
+                    ? 'bg-indigo-900/30 border-indigo-500/40'
+                    : 'bg-gray-800/40 border-gray-700/40'
+                }`}
+              >
+                <span className={`text-2xl flex-shrink-0 ${!a.unlocked ? 'grayscale opacity-50' : ''}`}>
+                  {a.icon}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs font-bold leading-tight truncate ${a.unlocked ? 'text-white' : 'text-gray-400'}`}>
+                    {a.label}
+                  </p>
+                  <p className="text-[10px] text-gray-500 leading-tight mt-0.5">{a.description}</p>
+                  {!a.unlocked && a.target > 1 && (
+                    <div className="mt-1.5">
+                      <div className="flex justify-between mb-0.5">
+                        <span className="text-[10px] text-gray-600">{a.progress}/{a.target}</span>
+                      </div>
+                      <div className="h-1 w-full bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-indigo-500/60 rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {a.unlocked && (
+                    <p className="text-[10px] text-indigo-400 font-semibold mt-0.5">✓ Desbloqueada</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

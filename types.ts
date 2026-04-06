@@ -40,6 +40,7 @@ export interface UserProfile {
   gender: string;
   experience_level: string;
   goal: string;
+  avatar_url?: string;
 }
 
 // Adicione essas interfaces se ainda não existirem

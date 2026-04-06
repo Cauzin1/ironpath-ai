@@ -223,6 +223,17 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
     });
   };
 
+  const handleDeleteWorkout = useCallback((index: number) => {
+    setWorkouts(prev => {
+      const copy = prev.filter((_, i) => i !== index);
+      return copy;
+    });
+    setCurrentIdx(prev => {
+      if (index < prev) return prev - 1;
+      return Math.max(0, Math.min(prev, workouts.length - 2));
+    });
+  }, [workouts.length]);
+
   const applySuggestions = useCallback((sugs: Suggestion[]) => {
       setWorkouts(prev => {
           const copy = [...prev];
@@ -389,6 +400,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                     setIsWorkoutRunning(true);
                     setActiveTab('workout');
                 }}
+                onDeleteWorkout={handleDeleteWorkout}
             />
         )}
 
@@ -401,14 +413,16 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
 
         {/* ABA: PERFIL */}
         {activeTab === 'profile' && (
-            <ProfileTab 
-                profile={userProfile} 
-                email={session.user.email} 
+            <ProfileTab
+                profile={userProfile}
+                email={session.user.email}
+                userId={session.user.id}
+                onAvatarUpdate={(url) => setUserProfile(prev => prev ? { ...prev, avatar_url: url } : prev)}
                 onLogout={async () => {
                     const { error } = await supabase.auth.signOut();
                     if (error) throw error;
                     window.location.href = '/';
-                }} 
+                }}
             />
         )}
 
