@@ -251,9 +251,10 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                         </div>
                     ) : (
                         <>
-                            <Menu completedDates={completedDates} workouts={workouts} currentWorkoutIndex={currentIdx} onWorkoutSelect={setCurrentIdx} onFileImport={(f) => handleImport(f)} />
-                            <WorkoutPlanner 
-                                workout={workouts[currentIdx]} 
+                            <Menu completedDates={completedDates} workouts={workouts} currentWorkoutIndex={currentIdx} onWorkoutSelect={(idx) => { setCurrentIdx(idx); setSeconds(0); setIsWorkoutRunning(true); }} onFileImport={(f) => handleImport(f)} />
+                            <WorkoutPlanner
+                                key={currentIdx}
+                                workout={workouts[currentIdx]}
                                 userProfile={userProfile}
                                 onUpdateWeight={updateWeight} 
                                 onToggleSet={toggleSet} 
@@ -304,8 +305,11 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             <span className="text-[10px] font-medium">Início</span>
          </button>
          
-         <button 
-            onClick={() => setActiveTab('workout')}
+         <button
+            onClick={() => {
+              setActiveTab('workout');
+              if (workouts.length > 0 && !isWorkoutRunning) setIsWorkoutRunning(true);
+            }}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'workout' ? 'text-indigo-400' : 'text-gray-500'}`}
          >
             <DumbbellIcon className="w-6 h-6" />
