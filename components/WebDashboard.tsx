@@ -262,12 +262,29 @@ const WebDashboard: React.FC<WebDashboardProps> = ({ workouts, completedDates })
 
       {/* Empty state */}
       {!hasData && (
-        <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-          <div className="text-5xl">📊</div>
-          <p className="text-white font-bold">Sem dados ainda</p>
-          <p className="text-gray-400 text-sm max-w-[260px]">
-            Complete seus primeiros treinos para ver sua evolução aqui.
-          </p>
+        <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl p-6 space-y-5">
+          <div className="text-center">
+            <div className="text-4xl mb-3">📊</div>
+            <p className="text-white font-bold text-lg">Sem histórico ainda</p>
+            <p className="text-gray-400 text-sm mt-1">Complete treinos para ver sua evolução aqui.</p>
+          </div>
+          <div className="space-y-3">
+            {[
+              { step: '1', icon: '📄', title: 'Importe seu PDF', desc: 'Vá em Planos e importe sua ficha de treino.' },
+              { step: '2', icon: '💪', title: 'Complete um treino', desc: 'Registre pesos e marque as séries na aba Treino.' },
+              { step: '3', icon: '📈', title: 'Veja sua evolução', desc: 'Seu progresso aparecerá aqui automaticamente.' },
+            ].map(({ step, icon, title, desc }) => (
+              <div key={step} className="flex items-start gap-3 bg-gray-900/40 rounded-xl p-3">
+                <div className="w-8 h-8 bg-indigo-600/20 border border-indigo-500/30 rounded-lg flex items-center justify-center text-sm font-black text-indigo-400 flex-shrink-0">
+                  {step}
+                </div>
+                <div>
+                  <p className="text-white text-sm font-semibold">{icon} {title}</p>
+                  <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

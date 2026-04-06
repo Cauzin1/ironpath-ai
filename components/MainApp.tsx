@@ -279,6 +279,14 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
       setIsWorkoutRunning(false);
   }, [currentIdx]);
 
+  // Navega para aba Treino e auto-inicia o timer se ainda não rodando
+  const goToWorkout = () => {
+    setActiveTab('workout');
+    if (!isWorkoutRunning && seconds === 0 && workouts.length > 0) {
+      setIsWorkoutRunning(true);
+    }
+  };
+
   // --- RENDERIZAÇÃO ---
 
   if (checkingProfile) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Carregando...</div>;
@@ -316,7 +324,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                 userProfile={userProfile}
                 workoutName={workouts[currentIdx]?.name}
                 completedDates={completedDates}
-                onStartWorkout={() => setActiveTab('workout')}
+                onStartWorkout={goToWorkout}
                 onImportFile={(file) => handleImport(file)}
                 hasWorkout={workouts.length > 0}
             />
@@ -464,7 +472,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                 onImport={handleImport}
                 onSelectAndGo={(index) => {
                     setCurrentIdx(index);
-                    setActiveTab('workout');
+                    goToWorkout();
                 }}
                 onDeleteWorkout={handleDeleteWorkout}
             />
@@ -482,6 +490,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                 email={session.user.email}
                 userId={session.user.id}
                 onAvatarUpdate={(url) => setUserProfile(prev => prev ? { ...prev, avatar_url: url } : prev)}
+                onProfileUpdate={(p) => setUserProfile(p)}
                 onLogout={async () => {
                     const { error } = await supabase.auth.signOut();
                     if (error) throw error;
@@ -507,7 +516,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             return (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => tab === 'workout' ? goToWorkout() : setActiveTab(tab)}
                 className="flex flex-col items-center justify-center w-full h-full gap-0.5 relative transition-colors"
               >
                 {isActive && (
