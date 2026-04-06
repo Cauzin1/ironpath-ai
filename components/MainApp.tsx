@@ -4,19 +4,19 @@ import { Menu } from './Menu';
 import { Onboarding } from './OnBoarding';
 import { HomeTab } from './HomeTab';
 import { ProfileTab } from './ProfileTab';
-import WebDashboard from './WebDashboard'; // CORREÇÃO: Importar WebDashboard
+import { WorkoutsTab } from './WorkoutsTab';
+import WebDashboard from './WebDashboard';
 import { Workout, Suggestion, UserProfile } from '../types';
 import { getWorkoutFromPDF } from '../services/geminiService';
 import { supabase } from '../supaBaseClient';
 import { Session } from '@supabase/supabase-js';
-import { 
-  UploadIcon, 
-  DumbbellIcon, 
-  ClockIcon, 
-  HomeIcon, 
-  UserIcon, 
-  HistoryIcon,
-  ChartBarIcon
+import {
+  DumbbellIcon,
+  ClockIcon,
+  HomeIcon,
+  UserIcon,
+  ChartBarIcon,
+  ClipboardListIcon,
 } from './icons';
 
 export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
@@ -26,7 +26,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const [completedDates, setCompletedDates] = useState<string[]>([]);
   
   // UI & Navegação
-  const [activeTab, setActiveTab] = useState<'home' | 'workout' | 'history' | 'profile' | 'dashboard'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'workout' | 'plans' | 'profile' | 'dashboard'>('home');
   const [importing, setImporting] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
@@ -34,6 +34,15 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   // Timer
   const [isWorkoutRunning, setIsWorkoutRunning] = useState(false);
   const [seconds, setSeconds] = useState(0);
+
+  // Import error banner
+  const [importError, setImportError] = useState<string | null>(null);
+
+  // Local date helper (avoids UTC offset issues)
+  const getLocalDateString = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
 
   // Timer Logic
   useEffect(() => {
@@ -54,7 +63,10 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   useEffect(() => {
     const loadData = async () => {
       const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', session.user.id).single();
-      if (profile) setUserProfile(profile);
+      if (profile) {
+        const name = session.user.user_metadata?.full_name as string | undefined;
+        setUserProfile({ ...profile, name });
+      }
 
       const { data: progress } = await supabase.from('user_progress').select('*').eq('user_id', session.user.id).single();
       if (progress) {
@@ -87,36 +99,64 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   }, [workouts, completedDates, currentIdx]);
 
   // Handlers
-  const handleImport = async (file?: File) => {
-    if (!file) {
-        document.getElementById('hidden-file-input')?.click();
-        return;
-    }
-
+  const handleImport = async (file: File, mode: 'replace' | 'append' = 'replace') => {
     setImporting(true);
+    setImportError(null);
     try {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
-         const b64 = (reader.result as string).split(',')[1];
-         const newW = await getWorkoutFromPDF(b64);
-         setWorkouts(newW);
-         setCurrentIdx(0);
-         setSeconds(0);
-         setIsWorkoutRunning(false);
-         setActiveTab('workout');
-         
-         await supabase.from('user_progress').upsert({
+        try {
+          const b64 = (reader.result as string).split(',')[1];
+          const newW = await getWorkoutFromPDF(b64);
+
+          let finalWorkouts: Workout[];
+          let finalIdx: number;
+
+          if (mode === 'append' && workouts.length > 0) {
+            // Re-atribui IDs para evitar conflitos
+            const maxId = workouts.reduce(
+              (max, w) => w.exercises.reduce((m, e) => Math.max(m, e.id), max), 0
+            );
+            let idCounter = maxId + 1;
+            const renumbered = newW.map(w => ({
+              ...w,
+              exercises: w.exercises.map(ex => ({ ...ex, id: idCounter++ })),
+            }));
+            finalWorkouts = [...workouts, ...renumbered];
+            finalIdx = currentIdx;
+          } else {
+            finalWorkouts = newW;
+            finalIdx = 0;
+            setSeconds(0);
+            setIsWorkoutRunning(false);
+            setActiveTab('plans');
+          }
+
+          setWorkouts(finalWorkouts);
+          setCurrentIdx(finalIdx);
+
+          await supabase.from('user_progress').upsert({
             user_id: session.user.id,
-            workouts: newW,
+            workouts: finalWorkouts,
             completed_dates: completedDates,
-            current_workout_index: 0
-         });
-         setImporting(false);
-      }
-    } catch (e) { 
-      alert("Erro ao importar"); 
-      setImporting(false); 
+            current_workout_index: finalIdx,
+          });
+        } catch (innerErr: any) {
+          const msg = innerErr?.message ?? 'Erro desconhecido.';
+          console.error('Erro ao processar PDF:', msg);
+          setImportError(msg);
+        } finally {
+          setImporting(false);
+        }
+      };
+      reader.onerror = () => {
+        setImportError('Não foi possível ler o PDF. Verifique se é um arquivo válido.');
+        setImporting(false);
+      };
+    } catch (e) {
+      setImportError('Não foi possível ler o PDF. Verifique se é um arquivo válido.');
+      setImporting(false);
     }
   };
 
@@ -124,7 +164,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const updateWeight = useCallback((id: number, w: number) => {
     setWorkouts(prev => {
         const copy = [...prev];
-        copy[currentIdx].exercises = copy[currentIdx].exercises.map(e => e.id === id ? {...e, currentWeight: w} : e);
+        const idx = Math.min(currentIdx, copy.length - 1);
+        copy[idx].exercises = copy[idx].exercises.map(e => e.id === id ? {...e, currentWeight: w} : e);
         return copy;
     });
   }, [currentIdx]);
@@ -132,10 +173,11 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const toggleSet = useCallback((id: number, s: number) => {
     setWorkouts(prev => {
         const copy = [...prev];
-        copy[currentIdx].exercises = copy[currentIdx].exercises.map(e => {
+        const idx = Math.min(currentIdx, copy.length - 1);
+        copy[idx].exercises = copy[idx].exercises.map(e => {
             if (e.id === id) {
-                const completed = e.completedSets.includes(s) 
-                    ? e.completedSets.filter(x => x !== s) 
+                const completed = e.completedSets.includes(s)
+                    ? e.completedSets.filter(x => x !== s)
                     : [...e.completedSets, s];
                 completed.sort((a,b) => a-b);
                 return {...e, completedSets: completed};
@@ -149,7 +191,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const handleFinishExercise = useCallback((id: number) => {
     setWorkouts(prev => {
         const copy = [...prev];
-        copy[currentIdx].exercises = copy[currentIdx].exercises.map(e => {
+        const idx = Math.min(currentIdx, copy.length - 1);
+        copy[idx].exercises = copy[idx].exercises.map(e => {
             if (e.id === id) return { ...e, isFinished: !e.isFinished };
             return e;
         });
@@ -157,22 +200,51 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
     });
   }, [currentIdx]);
 
+  const updateRpe = useCallback((id: number, rpe: number) => {
+    setWorkouts(prev => {
+        const copy = [...prev];
+        const idx = Math.min(currentIdx, copy.length - 1);
+        copy[idx].exercises = copy[idx].exercises.map(e =>
+            e.id === id ? { ...e, rpe } : e
+        );
+        return copy;
+    });
+  }, [currentIdx]);
+
   const handleWorkoutComplete = () => {
     setIsWorkoutRunning(false);
-    setCompletedDates(p => [...p, new Date().toISOString().split('T')[0]]);
+    const today = getLocalDateString();
+    setCompletedDates(p => p.includes(today) ? p : [...p, today]);
+    // Registra qual treino foi feito hoje
+    setWorkouts(prev => {
+      const copy = [...prev];
+      const idx = Math.min(currentIdx, copy.length - 1);
+      copy[idx] = { ...copy[idx], lastPerformedDate: today };
+      return copy;
+    });
   };
 
   const applySuggestions = useCallback((sugs: Suggestion[]) => {
       setWorkouts(prev => {
           const copy = [...prev];
-          copy[currentIdx].exercises = copy[currentIdx].exercises.map(e => {
+          const idx = Math.min(currentIdx, copy.length - 1);
+          copy[idx].exercises = copy[idx].exercises.map(e => {
               const sug = sugs.find(s => s.exerciseId === e.id);
               return {
                   ...e,
                   currentWeight: sug ? sug.suggestedWeight : e.currentWeight,
                   completedSets: [],
                   isFinished: false,
-                  history: [...e.history, { date: new Date().toISOString(), weight: e.currentWeight, reps: e.reps }]
+                  rpe: undefined,
+                  history: [
+                      ...e.history,
+                      {
+                          date: getLocalDateString(),
+                          weight: e.currentWeight,
+                          reps: e.reps,
+                          rpe: e.rpe,
+                      }
+                  ]
               };
           });
           return copy;
@@ -181,31 +253,31 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
       setIsWorkoutRunning(false);
   }, [currentIdx]);
 
-  // Input file escondido para o menu Home
-  const HiddenInput = () => (
-    <input 
-        id="hidden-file-input"
-        type="file" 
-        className="hidden" 
-        accept="application/pdf" 
-        onChange={e => e.target.files?.[0] && handleImport(e.target.files[0])} 
-    />
-  );
-
   // --- RENDERIZAÇÃO ---
 
   if (checkingProfile) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Carregando...</div>;
   if (!userProfile) return <Onboarding userId={session.user.id} onComplete={() => window.location.reload()} />;
 
   return (
-    <div className="min-h-screen bg-gray-900 pb-20 relative">
-      <HiddenInput />
-      
+    <div className="min-h-screen bg-gray-900 pb-20 pb-safe relative">
       {/* Loading Overlay */}
       {importing && (
           <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center text-white p-6 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mb-6"/>
               <h3 className="text-xl font-bold">Lendo PDF...</h3>
+              <p className="text-gray-400 text-sm mt-2">Pode levar alguns segundos</p>
+          </div>
+      )}
+
+      {/* Error Toast (global, visible in any tab) */}
+      {importError && (
+          <div className="fixed top-4 left-4 right-4 z-50 flex items-start justify-between bg-red-900/90 border border-red-700/60 rounded-xl p-4 shadow-xl backdrop-blur">
+              <p className="text-red-200 text-sm font-medium flex-1 leading-snug">{importError}</p>
+              <button
+                  onClick={() => setImportError(null)}
+                  className="ml-3 text-red-400 hover:text-white text-xl leading-none font-bold flex-shrink-0"
+                  aria-label="Fechar"
+              >×</button>
           </div>
       )}
 
@@ -214,18 +286,16 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
         
         {/* ABA: HOME (INÍCIO) */}
         {activeTab === 'home' && (
-            <HomeTab 
+            <HomeTab
                 userProfile={userProfile}
                 workoutName={workouts[currentIdx]?.name}
-                completedCount={completedDates.length}
+                completedDates={completedDates}
                 onStartWorkout={() => {
                     setActiveTab('workout');
                     if(seconds === 0 && !isWorkoutRunning) setIsWorkoutRunning(true);
                 }}
-                onImportClick={() => handleImport()}
+                onImportFile={(file) => handleImport(file)}
                 hasWorkout={workouts.length > 0}
-                onGoToDiet={() => {}}
-                onAddMeal={() => {}}
             />
         )}
 
@@ -247,25 +317,49 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                     {workouts.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[50vh] text-center">
                             <p className="text-gray-400 mb-4">Nenhum treino carregado.</p>
-                            <button onClick={() => handleImport()} className="bg-indigo-600 px-6 py-3 rounded-xl text-white font-bold">Importar PDF</button>
+                            <label className="bg-indigo-600 px-6 py-3 rounded-xl text-white font-bold cursor-pointer hover:bg-indigo-500 transition-colors">
+                                Importar PDF
+                                <input type="file" accept="application/pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImport(f); }} />
+                            </label>
                         </div>
                     ) : (
-                        <>
-                            <Menu completedDates={completedDates} workouts={workouts} currentWorkoutIndex={currentIdx} onWorkoutSelect={(idx) => { setCurrentIdx(idx); setSeconds(0); setIsWorkoutRunning(true); }} onFileImport={(f) => handleImport(f)} />
-                            <WorkoutPlanner
-                                key={currentIdx}
-                                workout={workouts[currentIdx]}
-                                userProfile={userProfile}
-                                onUpdateWeight={updateWeight} 
-                                onToggleSet={toggleSet} 
-                                onFinishExercise={handleFinishExercise}
-                                onWorkoutComplete={handleWorkoutComplete}
-                                onNewWorkout={applySuggestions}
-                            />
-                        </>
+                        (() => {
+                            const safeIdx = Math.min(currentIdx, workouts.length - 1);
+                            return (
+                                <>
+                                    <Menu completedDates={completedDates} workouts={workouts} currentWorkoutIndex={safeIdx} onWorkoutSelect={(idx) => { setCurrentIdx(idx); setSeconds(0); setIsWorkoutRunning(true); }} onFileImport={(f) => handleImport(f)} />
+                                    <WorkoutPlanner
+                                        key={safeIdx}
+                                        workout={workouts[safeIdx]}
+                                        userProfile={userProfile}
+                                        onUpdateWeight={updateWeight}
+                                        onToggleSet={toggleSet}
+                                        onFinishExercise={handleFinishExercise}
+                                        onRpeChange={updateRpe}
+                                        onWorkoutComplete={handleWorkoutComplete}
+                                        onNewWorkout={applySuggestions}
+                                    />
+                                </>
+                            );
+                        })()
                     )}
                 </div>
             </>
+        )}
+
+        {/* ABA: PLANOS (MEUS TREINOS) */}
+        {activeTab === 'plans' && (
+            <WorkoutsTab
+                workouts={workouts}
+                currentWorkoutIndex={workouts.length > 0 ? Math.min(currentIdx, workouts.length - 1) : 0}
+                onImport={handleImport}
+                onSelectAndGo={(index) => {
+                    setCurrentIdx(index);
+                    setSeconds(0);
+                    setIsWorkoutRunning(true);
+                    setActiveTab('workout');
+                }}
+            />
         )}
 
         {/* ABA: DASHBOARD (PROGRESSO) */}
@@ -280,31 +374,27 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             <ProfileTab 
                 profile={userProfile} 
                 email={session.user.email} 
-                onLogout={() => supabase.auth.signOut()} 
+                onLogout={async () => {
+                    const { error } = await supabase.auth.signOut();
+                    if (error) throw error;
+                    window.location.href = '/';
+                }} 
             />
-        )}
-
-        {/* Placeholder para Histórico */}
-        {activeTab === 'history' && (
-            <div className="p-6 text-center text-gray-500 mt-20">
-                <HistoryIcon className="w-12 h-12 mx-auto mb-4 opacity-50"/>
-                <p>Histórico detalhado em breve.</p>
-                <p className="text-xs mt-2">Total de treinos: {completedDates.length}</p>
-            </div>
         )}
 
       </div>
 
       {/* MENU INFERIOR (NAVEGAÇÃO) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 h-20 pb-safe-bottom flex justify-around items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.5)]">
-         <button 
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.5)] pb-safe">
+        <div className="h-16 flex justify-around items-center">
+         <button
             onClick={() => setActiveTab('home')}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'home' ? 'text-white' : 'text-gray-500'}`}
          >
             <HomeIcon className="w-6 h-6" />
             <span className="text-[10px] font-medium">Início</span>
          </button>
-         
+
          <button
             onClick={() => {
               setActiveTab('workout');
@@ -316,7 +406,15 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             <span className="text-[10px] font-medium">Treino</span>
          </button>
 
-         <button 
+         <button
+            onClick={() => setActiveTab('plans')}
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'plans' ? 'text-violet-400' : 'text-gray-500'}`}
+         >
+            <ClipboardListIcon className="w-6 h-6" />
+            <span className="text-[10px] font-medium">Planos</span>
+         </button>
+
+         <button
             onClick={() => setActiveTab('dashboard')}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'dashboard' ? 'text-emerald-400' : 'text-gray-500'}`}
          >
@@ -324,21 +422,14 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             <span className="text-[10px] font-medium">Progresso</span>
          </button>
 
-         <button 
-            onClick={() => setActiveTab('history')}
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'history' ? 'text-white' : 'text-gray-500'}`}
-         >
-            <HistoryIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Histórico</span>
-         </button>
-         
-         <button 
+         <button
             onClick={() => setActiveTab('profile')}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'profile' ? 'text-white' : 'text-gray-500'}`}
          >
             <UserIcon className="w-6 h-6" />
             <span className="text-[10px] font-medium">Perfil</span>
          </button>
+        </div>
       </div>
     </div>
   );

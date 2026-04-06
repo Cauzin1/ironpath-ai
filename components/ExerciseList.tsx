@@ -6,7 +6,8 @@ interface ExerciseListProps {
   exercises: Exercise[];
   onWeightChange: (id: number, w: number) => void;
   onSetToggle: (id: number, s: number) => void;
-  onFinishExercise: (id: number) => void; // NOVO PROP
+  onFinishExercise: (id: number) => void;
+  onRpeChange: (id: number, rpe: number) => void;
   isWorkoutFinished: boolean;
 }
 

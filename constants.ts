@@ -11,6 +11,7 @@ export const initialWorkout: Workout = {
       reps: 10,
       currentWeight: 40,
       completedSets: [],
+      isFinished: false,
       history: [
         { date: "2024-07-15", weight: 38, reps: 10 },
         { date: "2024-07-18", weight: 40, reps: 10 }
@@ -23,6 +24,7 @@ export const initialWorkout: Workout = {
       reps: 12,
       currentWeight: 12,
       completedSets: [],
+      isFinished: false,
       history: [
         { date: "2024-07-15", weight: 10, reps: 12 },
         { date: "2024-07-18", weight: 12, reps: 11 }
@@ -35,6 +37,7 @@ export const initialWorkout: Workout = {
       reps: 12,
       currentWeight: 25,
       completedSets: [],
+      isFinished: false,
       history: []
     },
     {
@@ -44,6 +47,7 @@ export const initialWorkout: Workout = {
       reps: 15,
       currentWeight: 8,
       completedSets: [],
+      isFinished: false,
       history: [
          { date: "2024-07-15", weight: 8, reps: 12 },
          { date: "2024-07-18", weight: 8, reps: 14 }
