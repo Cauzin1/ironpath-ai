@@ -108,7 +108,7 @@ export const WorkoutPlanner: React.FC<WPProps> = ({
     );
 
   return (
-    <div className="pb-40">
+    <div className="pb-24">
       {/* Confirm modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">

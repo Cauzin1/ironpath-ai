@@ -349,7 +349,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                                         )}
                                         <button
                                             onClick={() => setActiveTab('plans')}
-                                            className="text-xs text-gray-400 hover:text-white bg-gray-800 border border-gray-700 px-3 py-1.5 rounded-lg transition-colors"
+                                            className="text-xs text-gray-400 hover:text-white bg-gray-800 border border-gray-700 px-3 py-2.5 rounded-lg transition-colors min-h-[36px]"
                                         >
                                             Gerenciar
                                         </button>

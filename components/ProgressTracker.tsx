@@ -39,8 +39,8 @@ export const ProgressTracker: React.FC<ProgressTrackerProps> = ({ suggestions })
             >
               <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-600/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
 
-              <div className="flex justify-between items-start mb-4 relative z-10">
-                <h4 className="font-bold text-white text-lg w-1/2 leading-tight">{suggestion.exerciseName}</h4>
+              <div className="flex justify-between items-start gap-3 mb-4 relative z-10">
+                <h4 className="font-bold text-white text-lg flex-1 min-w-0 leading-tight break-words">{suggestion.exerciseName}</h4>
 
                 <div className="text-right">
                   <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Próxima Carga</p>

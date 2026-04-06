@@ -74,7 +74,7 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
               </div>
               <button
                 onClick={() => onSelectAndGo(Math.min(currentWorkoutIndex, workouts.length - 1))}
-                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all flex-shrink-0"
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold px-4 py-3 rounded-xl transition-all flex-shrink-0 min-h-[44px]"
               >
                 <PlayIcon className="w-3.5 h-3.5" />
                 Treinar
@@ -114,7 +114,7 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
                           )}
                         </div>
                         {done > 0 && (
-                          <div className="mt-1.5 h-1 w-full bg-gray-700 rounded-full overflow-hidden">
+                          <div className="mt-1.5 h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-green-500 rounded-full transition-all"
                               style={{ width: `${(done / total) * 100}%` }}
@@ -126,7 +126,7 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
                       {/* Deletar */}
                       <button
                         onClick={() => setConfirmDelete(isConfirming ? null : index)}
-                        className="text-gray-600 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-900/20 flex-shrink-0"
+                        className="text-gray-600 hover:text-red-400 transition-colors p-3 rounded-lg hover:bg-red-900/20 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
                         title="Remover este dia"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -141,13 +141,13 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
                       <div className="mt-2.5 flex gap-2">
                         <button
                           onClick={() => setConfirmDelete(null)}
-                          className="flex-1 py-1.5 rounded-lg bg-gray-700 text-gray-300 text-xs font-semibold hover:bg-gray-600 transition-colors"
+                          className="flex-1 py-3 rounded-xl bg-gray-700 text-gray-300 text-sm font-semibold hover:bg-gray-600 transition-colors min-h-[44px]"
                         >
                           Cancelar
                         </button>
                         <button
                           onClick={() => { onDeleteWorkout(index); setConfirmDelete(null); }}
-                          className="flex-1 py-1.5 rounded-lg bg-red-900/60 border border-red-700/50 text-red-300 text-xs font-semibold hover:bg-red-900 transition-colors"
+                          className="flex-1 py-3 rounded-xl bg-red-900/60 border border-red-700/50 text-red-300 text-sm font-semibold hover:bg-red-900 transition-colors min-h-[44px]"
                         >
                           Remover dia
                         </button>

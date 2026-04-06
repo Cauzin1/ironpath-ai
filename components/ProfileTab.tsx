@@ -73,7 +73,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ profile, email, userId, 
   const initials = (profile.name ?? email ?? 'A').charAt(0).toUpperCase();
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in pb-32">
+    <div className="p-6 space-y-6 animate-fade-in pb-24">
       {/* Avatar */}
       <div className="flex flex-col items-center mt-6">
         <button
