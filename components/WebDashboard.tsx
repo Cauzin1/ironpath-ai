@@ -1,260 +1,275 @@
-// components/WebDashboard.tsx - VERSÃO CORRIGIDA PARA TEMA ESCURO
-import React, { useEffect, useState } from 'react';
-import { fetchDashboardData, DashboardData } from '../services/DashboardService';
+import React, { useMemo } from 'react';
+import { Workout } from '../types';
+import { calculateStreak, getWeeklyCount, getMaxStreak } from '../utils/gamification';
 
 interface WebDashboardProps {
-  userId: string;
+  workouts: Workout[];
+  completedDates: string[];
 }
 
-const WebDashboard: React.FC<WebDashboardProps> = ({ userId }) => {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+function getLocalDate(offset = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
-  useEffect(() => {
-    loadData();
-  }, [userId]);
+function formatShortDate(iso: string): string {
+  const [, month, day] = iso.split('-');
+  return `${day}/${month}`;
+}
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchDashboardData(userId);
-      setDashboardData(data);
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
-      setError('Não foi possível carregar os dados do dashboard');
-      
-      // Dados de fallback
-      setDashboardData(getFallbackData());
-    } finally {
-      setLoading(false);
+const WebDashboard: React.FC<WebDashboardProps> = ({ workouts, completedDates }) => {
+  const dateSet = useMemo(() => new Set(completedDates), [completedDates]);
+
+  // ── Quick stats ────────────────────────────────────────────────────────
+  const totalWorkouts = completedDates.length;
+  const streak = calculateStreak(completedDates);
+  const maxStreak = getMaxStreak(completedDates);
+  const weeklyCount = getWeeklyCount(completedDates);
+
+  // ── Last 30 days activity grid ─────────────────────────────────────────
+  const last30 = useMemo(() => {
+    return Array.from({ length: 30 }, (_, i) => {
+      const iso = getLocalDate(-(29 - i));
+      return { iso, done: dateSet.has(iso) };
+    });
+  }, [dateSet]);
+
+  // ── Last 8 weeks workout count ─────────────────────────────────────────
+  const weeklyBars = useMemo(() => {
+    const weeks: { label: string; count: number }[] = [];
+    for (let w = 7; w >= 0; w--) {
+      const monday = new Date();
+      const day = monday.getDay();
+      monday.setDate(monday.getDate() - ((day + 6) % 7) - w * 7);
+      monday.setHours(0, 0, 0, 0);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+
+      const count = completedDates.filter(d => {
+        const dt = new Date(d + 'T00:00:00');
+        return dt >= monday && dt <= sunday;
+      }).length;
+
+      const mm = String(monday.getMonth() + 1).padStart(2, '0');
+      const dd = String(monday.getDate()).padStart(2, '0');
+      weeks.push({ label: `${dd}/${mm}`, count });
     }
-  };
+    return weeks;
+  }, [completedDates]);
 
-  const getFallbackData = (): DashboardData => {
-    return {
-      strengthData: [
-        { week: 'W1', squat: 60, bench: 40, deadlift: 80 },
-        { week: 'W2', squat: 65, bench: 45, deadlift: 85 },
-        { week: 'W3', squat: 70, bench: 50, deadlift: 90 },
-        { week: 'W4', squat: 72.5, bench: 52.5, deadlift: 95 },
-        { week: 'W5', squat: 75, bench: 55, deadlift: 100 },
-        { week: 'W6', squat: 77.5, bench: 57.5, deadlift: 105 },
-      ],
-      volumeData: [
-        { day: 'Seg', volume: 8500 },
-        { day: 'Ter', volume: 9200 },
-        { day: 'Qua', volume: 7800 },
-        { day: 'Qui', volume: 9500 },
-        { day: 'Sex', volume: 8800 },
-        { day: 'Sáb', volume: 0 },
-        { day: 'Dom', volume: 0 },
-      ],
-      muscleGroupData: [
-        { x: 'Pernas', y: 35 },
-        { x: 'Costas', y: 25 },
-        { x: 'Peito', y: 20 },
-        { x: 'Braços', y: 15 },
-        { x: 'Ombro', y: 5 },
-      ],
-      metrics: {
-        totalWorkouts: 0,
-        consistencyRate: 0,
-        strengthProgress: 0,
-      },
-      estimated1RM: {
-        squat: 80,
-        bench: 55,
-        deadlift: 100,
-      },
-      insights: [
-        {
-          type: 'info',
-          message: 'Comece a registrar seus treinos para ver estatísticas detalhadas.',
-        },
-      ],
-    };
-  };
+  const maxWeekly = Math.max(...weeklyBars.map(w => w.count), 1);
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mb-4"></div>
-        <p className="text-gray-400">Carregando dashboard...</p>
-      </div>
-    );
-  }
+  // ── Exercises with progression ─────────────────────────────────────────
+  const exerciseProgress = useMemo(() => {
+    const map = new Map<string, { dates: string[]; weights: number[] }>();
 
-  if (error && (!dashboardData || dashboardData.metrics.totalWorkouts === 0)) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-red-400 text-lg font-bold mb-2">⚠️ Erro ao carregar</div>
-        <p className="text-gray-400 mb-4">{error}</p>
-        <button
-          onClick={loadData}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
-        >
-          Tentar novamente
-        </button>
-      </div>
-    );
-  }
+    for (const workout of workouts) {
+      for (const ex of workout.exercises) {
+        if (ex.history.length < 1) continue;
+        const key = ex.name.toLowerCase().trim();
+        if (!map.has(key)) map.set(key, { dates: [], weights: [] });
+        const entry = map.get(key)!;
+        for (const h of ex.history) {
+          if (!entry.dates.includes(h.date)) {
+            entry.dates.push(h.date);
+            entry.weights.push(h.weight);
+          }
+        }
+        // Also include current weight if not already in history for today
+        const today = getLocalDate();
+        if (ex.currentWeight > 0 && !entry.dates.includes(today) && ex.isFinished) {
+          entry.dates.push(today);
+          entry.weights.push(ex.currentWeight);
+        }
+      }
+    }
 
-  if (!dashboardData) {
-    return null;
-  }
+    return Array.from(map.entries())
+      .map(([key, val]) => {
+        const pairs = val.dates
+          .map((d, i) => ({ date: d, weight: val.weights[i] }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+        const first = pairs[0];
+        const last = pairs[pairs.length - 1];
+        const delta = last.weight - first.weight;
+        return {
+          name: key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+          sessions: pairs.length,
+          startWeight: first.weight,
+          currentWeight: last.weight,
+          delta,
+          pairs,
+        };
+      })
+      .filter(e => e.sessions >= 1)
+      .sort((a, b) => b.sessions - a.sessions)
+      .slice(0, 5);
+  }, [workouts]);
 
-  const { strengthData, metrics, estimated1RM, insights } = dashboardData;
+  const hasData = totalWorkouts > 0;
+  const hasExerciseHistory = exerciseProgress.some(e => e.sessions >= 2);
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
+    <div className="p-5 space-y-5 pb-28 animate-fade-in">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white">📊 Dashboard de Progresso</h1>
-        <p className="text-gray-400 mt-2">Acompanhe sua evolução e desempenho</p>
+      <div className="pt-1">
+        <h1 className="text-2xl font-black text-white">Progresso</h1>
+        <p className="text-gray-400 text-sm mt-0.5">Sua evolução ao longo do tempo</p>
       </div>
 
-      {/* Métricas Rápidas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-          <div className="text-2xl font-bold text-white">{metrics.totalWorkouts}</div>
-          <div className="text-sm text-gray-400 font-medium">Treinos</div>
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl p-4">
+          <p className="text-3xl font-black text-white">{totalWorkouts}</p>
+          <p className="text-gray-400 text-xs mt-1">Total de treinos</p>
         </div>
-        <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-          <div className="text-2xl font-bold text-white">{metrics.consistencyRate}%</div>
-          <div className="text-sm text-gray-400 font-medium">Consistência</div>
+        <div className="bg-gradient-to-br from-orange-900/40 to-red-900/30 border border-orange-700/30 rounded-2xl p-4">
+          <p className="text-3xl font-black text-white">{streak}</p>
+          <p className="text-orange-300 text-xs mt-1">🔥 Sequência atual</p>
         </div>
-        <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-          <div className="text-2xl font-bold text-white">+{metrics.strengthProgress}%</div>
-          <div className="text-sm text-gray-400 font-medium">Força</div>
+        <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl p-4">
+          <p className="text-3xl font-black text-white">{weeklyCount}</p>
+          <p className="text-gray-400 text-xs mt-1">Treinos esta semana</p>
         </div>
-        <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-          <div className="text-2xl font-bold text-white">{strengthData.length}</div>
-          <div className="text-sm text-gray-400 font-medium">Semanas</div>
-        </div>
-      </div>
-
-      {/* Gráfico de Força */}
-      <div className="bg-gray-800/30 p-6 rounded-xl border border-gray-700/50 mb-8">
-        <h2 className="text-xl font-bold mb-4 text-white">📈 Evolução das Cargas</h2>
-        <div className="h-64 relative">
-          {/* Linhas de referência - CORES ESCURAS */}
-          <div className="absolute inset-0 flex flex-col justify-between">
-            {[0, 25, 50, 75, 100, 125].map((value) => (
-              <div key={value} className="flex items-center">
-                <div className="w-12 text-right text-sm font-medium text-gray-400 pr-3">{value}kg</div>
-                <div className="flex-1 border-t border-gray-700"></div>
-              </div>
-            ))}
-          </div>
-
-          {/* Barras para cada semana */}
-          <div className="absolute inset-0 flex items-end px-10 pt-8 pb-6">
-            {strengthData.map((week: any, index: number) => (
-              <div key={week.week} className="flex-1 flex flex-col items-center mx-1">
-                <div className="flex items-end space-x-1 w-full justify-center">
-                  <div 
-                    className="w-1/3 bg-blue-600 rounded-t"
-                    style={{ height: `${(week.squat / 125) * 80}%` }}
-                    title={`Agachamento: ${week.squat}kg`}
-                  ></div>
-                  <div 
-                    className="w-1/3 bg-green-600 rounded-t"
-                    style={{ height: `${(week.bench / 125) * 80}%` }}
-                    title={`Supino: ${week.bench}kg`}
-                  ></div>
-                  <div 
-                    className="w-1/3 bg-orange-600 rounded-t"
-                    style={{ height: `${(week.deadlift / 125) * 80}%` }}
-                    title={`Levantamento Terra: ${week.deadlift}kg`}
-                  ></div>
-                </div>
-                <div className="text-sm font-medium text-gray-300 mt-3">{week.week}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* Legenda - CORES ESCURAS */}
-        <div className="flex justify-center space-x-6 mt-8">
-          <div className="flex items-center">
-            <div className="w-4 h-4 bg-blue-600 rounded-full mr-2"></div>
-            <span className="text-sm font-medium text-gray-300">Agachamento</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-4 h-4 bg-green-600 rounded-full mr-2"></div>
-            <span className="text-sm font-medium text-gray-300">Supino</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-4 h-4 bg-orange-600 rounded-full mr-2"></div>
-            <span className="text-sm font-medium text-gray-300">Lev. Terra</span>
-          </div>
+        <div className="bg-indigo-900/30 border border-indigo-700/30 rounded-2xl p-4">
+          <p className="text-3xl font-black text-white">{maxStreak}</p>
+          <p className="text-indigo-300 text-xs mt-1">⚡ Melhor sequência</p>
         </div>
       </div>
 
-      {/* 1RM Atual - CORES ESCURAS */}
-      <div className="bg-gray-800/30 p-6 rounded-xl border border-gray-700/50 mb-8">
-        <h2 className="text-xl font-bold mb-4 text-white">🏋️‍♂️ 1RM Atual Estimado</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="border-l-4 border-blue-600 pl-4 py-4 bg-blue-900/20 rounded-r">
-            <div className="text-sm font-medium text-gray-400">Agachamento</div>
-            <div className="text-2xl font-bold text-white">{Math.round(estimated1RM.squat)} kg</div>
-          </div>
-          <div className="border-l-4 border-green-600 pl-4 py-4 bg-green-900/20 rounded-r">
-            <div className="text-sm font-medium text-gray-400">Supino</div>
-            <div className="text-2xl font-bold text-white">{Math.round(estimated1RM.bench)} kg</div>
-          </div>
-          <div className="border-l-4 border-orange-600 pl-4 py-4 bg-orange-900/20 rounded-r">
-            <div className="text-sm font-medium text-gray-400">Levantamento Terra</div>
-            <div className="text-2xl font-bold text-white">{Math.round(estimated1RM.deadlift)} kg</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Insights - CORES ESCURAS */}
-      <div className="bg-gray-800/30 p-6 rounded-xl border border-gray-700/50">
-        <h2 className="text-xl font-bold mb-4 text-white">💡 Insights do GOLIAS Coach</h2>
-        <div className="space-y-4">
-          {insights.map((insight: any, index: number) => (
-            <div 
-              key={index}
-              className={`p-4 rounded-lg border-l-4 ${
-                insight.type === 'positive' 
-                  ? 'bg-blue-900/20 border-blue-600' 
-                  : insight.type === 'warning'
-                  ? 'bg-yellow-900/20 border-yellow-600'
-                  : 'bg-gray-800/50 border-gray-600'
+      {/* 30-Day Activity Grid */}
+      <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl p-4">
+        <p className="text-white font-bold text-sm mb-3">Últimos 30 dias</p>
+        <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(10, 1fr)' }}>
+          {last30.map(({ iso, done }) => (
+            <div
+              key={iso}
+              title={`${formatShortDate(iso)}${done ? ' ✓' : ''}`}
+              className={`aspect-square rounded-md transition-colors ${
+                done
+                  ? 'bg-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.5)]'
+                  : 'bg-gray-700/60'
               }`}
-            >
-              <div className="flex items-start">
-                <span className="mr-3 text-lg">
-                  {insight.type === 'positive' ? '✅' : insight.type === 'warning' ? '⚠️' : '💡'}
-                </span>
-                <p className={`font-medium ${
-                  insight.type === 'positive' 
-                    ? 'text-blue-300' 
-                    : insight.type === 'warning'
-                    ? 'text-yellow-300'
-                    : 'text-gray-300'
-                }`}>
-                  {insight.message}
-                </p>
-              </div>
-            </div>
+            />
           ))}
         </div>
+        <div className="flex justify-between mt-2">
+          <span className="text-gray-600 text-[10px]">30 dias atrás</span>
+          <span className="text-gray-600 text-[10px]">Hoje</span>
+        </div>
       </div>
 
-      {/* Botão de Recarregar */}
-      <div className="mt-8 text-center">
-        <button
-          onClick={loadData}
-          className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded-lg border border-gray-700"
-        >
-          Atualizar Dashboard
-        </button>
+      {/* Weekly Volume Chart */}
+      <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl p-4">
+        <p className="text-white font-bold text-sm mb-4">Treinos por semana</p>
+        <div className="flex items-end gap-1.5 h-24">
+          {weeklyBars.map((week, i) => {
+            const isLast = i === weeklyBars.length - 1;
+            const heightPct = week.count === 0 ? 4 : Math.max((week.count / maxWeekly) * 100, 8);
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full relative flex items-end justify-center" style={{ height: '80px' }}>
+                  <div
+                    className={`w-full rounded-t-md transition-all duration-700 ${
+                      isLast
+                        ? 'bg-indigo-500'
+                        : week.count > 0
+                        ? 'bg-indigo-700/60'
+                        : 'bg-gray-700/40'
+                    }`}
+                    style={{ height: `${heightPct}%` }}
+                  />
+                  {week.count > 0 && (
+                    <span className="absolute -top-4 text-[9px] font-bold text-gray-400">{week.count}</span>
+                  )}
+                </div>
+                <span className={`text-[9px] leading-tight ${isLast ? 'text-indigo-400 font-bold' : 'text-gray-600'}`}>
+                  {isLast ? 'Atual' : week.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Exercise Progress */}
+      {hasData && (
+        <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl overflow-hidden">
+          <div className="px-4 pt-4 pb-3">
+            <p className="text-white font-bold text-sm">Evolução dos exercícios</p>
+            {!hasExerciseHistory && (
+              <p className="text-gray-500 text-xs mt-0.5">Complete mais sessões para ver sua progressão</p>
+            )}
+          </div>
+
+          {exerciseProgress.length === 0 ? (
+            <div className="px-4 pb-4">
+              <p className="text-gray-500 text-sm">Nenhum histórico de exercícios ainda.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-700/40">
+              {exerciseProgress.map((ex) => {
+                const deltaPos = ex.delta > 0;
+                const deltaNeg = ex.delta < 0;
+                const maxW = Math.max(...ex.pairs.map(p => p.weight), 1);
+                return (
+                  <div key={ex.name} className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-semibold truncate">{ex.name}</p>
+                        <p className="text-gray-500 text-[11px]">{ex.sessions} {ex.sessions === 1 ? 'sessão' : 'sessões'}</p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-white font-bold text-sm">{ex.currentWeight} kg</p>
+                        {ex.sessions >= 2 && (
+                          <p className={`text-[11px] font-semibold ${
+                            deltaPos ? 'text-green-400' : deltaNeg ? 'text-red-400' : 'text-gray-500'
+                          }`}>
+                            {deltaPos ? '+' : ''}{ex.delta.toFixed(1)} kg
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Mini sparkline */}
+                    {ex.pairs.length >= 2 && (
+                      <div className="flex items-end gap-0.5 h-8">
+                        {ex.pairs.map((p, i) => {
+                          const h = Math.max((p.weight / maxW) * 100, 10);
+                          const isLatest = i === ex.pairs.length - 1;
+                          return (
+                            <div
+                              key={i}
+                              className={`flex-1 rounded-sm transition-all ${
+                                isLatest ? 'bg-indigo-400' : 'bg-indigo-800/60'
+                              }`}
+                              style={{ height: `${h}%` }}
+                              title={`${formatShortDate(p.date)}: ${p.weight}kg`}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!hasData && (
+        <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+          <div className="text-5xl">📊</div>
+          <p className="text-white font-bold">Sem dados ainda</p>
+          <p className="text-gray-400 text-sm max-w-[260px]">
+            Complete seus primeiros treinos para ver sua evolução aqui.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

@@ -472,9 +472,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
 
         {/* ABA: DASHBOARD (PROGRESSO) */}
         {activeTab === 'dashboard' && (
-            <div className="p-4">
-                <WebDashboard userId={session.user.id} /> {/* CORREÇÃO: Usar WebDashboard */}
-            </div>
+            <WebDashboard workouts={workouts} completedDates={completedDates} />
         )}
 
         {/* ABA: PERFIL */}
@@ -495,47 +493,34 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
       </div>
 
       {/* MENU INFERIOR (NAVEGAÇÃO) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.5)] pb-safe">
-        <div className="h-16 flex justify-around items-center">
-         <button
-            onClick={() => setActiveTab('home')}
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'home' ? 'text-white' : 'text-gray-500'}`}
-         >
-            <HomeIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Início</span>
-         </button>
-
-         <button
-            onClick={() => setActiveTab('workout')}
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'workout' ? 'text-indigo-400' : 'text-gray-500'}`}
-         >
-            <DumbbellIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Treino</span>
-         </button>
-
-         <button
-            onClick={() => setActiveTab('plans')}
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'plans' ? 'text-violet-400' : 'text-gray-500'}`}
-         >
-            <ClipboardListIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Planos</span>
-         </button>
-
-         <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'dashboard' ? 'text-emerald-400' : 'text-gray-500'}`}
-         >
-            <ChartBarIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Progresso</span>
-         </button>
-
-         <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'profile' ? 'text-white' : 'text-gray-500'}`}
-         >
-            <UserIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Perfil</span>
-         </button>
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t border-gray-800 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.6)] pb-safe">
+        <div className="h-16 flex justify-around items-center px-1">
+          {(
+            [
+              { tab: 'home'      as const, Icon: HomeIcon,          label: 'Início'    },
+              { tab: 'workout'   as const, Icon: DumbbellIcon,      label: 'Treino'    },
+              { tab: 'plans'     as const, Icon: ClipboardListIcon, label: 'Planos'    },
+              { tab: 'dashboard' as const, Icon: ChartBarIcon,      label: 'Progresso' },
+              { tab: 'profile'   as const, Icon: UserIcon,          label: 'Perfil'    },
+            ]
+          ).map(({ tab, Icon, label }) => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className="flex flex-col items-center justify-center w-full h-full gap-0.5 relative transition-colors"
+              >
+                {isActive && (
+                  <span className="absolute top-1.5 w-6 h-0.5 bg-indigo-500 rounded-full" />
+                )}
+                <Icon className={`w-6 h-6 transition-colors ${isActive ? 'text-indigo-400' : 'text-gray-500'}`} />
+                <span className={`text-[10px] font-medium transition-colors ${isActive ? 'text-indigo-400' : 'text-gray-500'}`}>
+                  {label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
