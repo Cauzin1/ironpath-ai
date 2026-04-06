@@ -16,7 +16,17 @@ import {
   UserIcon,
   ChartBarIcon,
   ClipboardListIcon,
+  UploadIcon,
 } from './icons';
+
+// Extrai abreviação do nome do treino para exibir nos tabs
+const getWorkoutAbbr = (name: string): string => {
+  const match = name.match(/Treino\s+(\w+)/i);
+  if (match) return match[1].toUpperCase();
+  const words = name.split(/[\s\-–]+/);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return words[0].substring(0, 3).toUpperCase();
+};
 
 export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   // Dados
@@ -300,10 +310,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                 userProfile={userProfile}
                 workoutName={workouts[currentIdx]?.name}
                 completedDates={completedDates}
-                onStartWorkout={() => {
-                    setActiveTab('workout');
-                    if(seconds === 0 && !isWorkoutRunning) setIsWorkoutRunning(true);
-                }}
+                onStartWorkout={() => setActiveTab('workout')}
                 onImportFile={(file) => handleImport(file)}
                 hasWorkout={workouts.length > 0}
             />
@@ -312,46 +319,92 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
         {/* ABA: TREINO (WORKOUT) */}
         {activeTab === 'workout' && (
             <>
-                {/* Header fixo da sessão: nome do treino + timer */}
+                {/* Header fixo: seletor de dias + timer */}
                 <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur border-b border-gray-800 shadow-lg">
-                    {workouts.length > 0 && (() => {
+                    {workouts.length > 0 ? (() => {
                         const safeIdx = Math.min(currentIdx, workouts.length - 1);
-                        const w = workouts[safeIdx];
-                        const doneCount = w.exercises.filter(e => e.isFinished).length;
+                        const doneCount = workouts[safeIdx].exercises.filter(e => e.isFinished).length;
+                        const total = workouts[safeIdx].exercises.length;
                         return (
-                            <div className="px-4 pt-3 pb-1 flex items-center gap-3">
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Sessão ativa</p>
-                                    <p className="text-white font-bold text-sm truncate leading-tight">{w.name}</p>
-                                    {w.scheduledDays && (
-                                        <p className="text-indigo-400 text-[11px] leading-tight mt-0.5">{w.scheduledDays}</p>
-                                    )}
+                            <>
+                                {/* Linha: título + botão gerenciar */}
+                                <div className="px-4 pt-3 pb-1.5 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Selecione o dia</p>
+                                        <p className="text-white font-bold text-sm leading-tight truncate max-w-[200px]">
+                                            {workouts[safeIdx].name}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {doneCount > 0 && (
+                                            <span className="text-green-400 text-xs font-bold bg-green-900/30 px-2.5 py-1 rounded-full">
+                                                {doneCount}/{total}
+                                            </span>
+                                        )}
+                                        <button
+                                            onClick={() => setActiveTab('plans')}
+                                            className="text-xs text-gray-400 hover:text-white bg-gray-800 border border-gray-700 px-3 py-1.5 rounded-lg transition-colors"
+                                        >
+                                            Gerenciar
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                    {doneCount > 0 && (
-                                        <span className="text-green-400 text-xs font-bold bg-green-900/30 px-2 py-0.5 rounded-full">
-                                            {doneCount}/{w.exercises.length}
+
+                                {/* Tabs dos dias do programa */}
+                                <div className="flex overflow-x-auto px-4 pb-2 gap-2 scrollbar-hide">
+                                    {workouts.map((w, idx) => {
+                                        const isActive = safeIdx === idx;
+                                        const doneInThis = w.exercises.filter(e => e.isFinished).length;
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => setCurrentIdx(idx)}
+                                                className={`flex-shrink-0 flex flex-col items-center px-4 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                                                    isActive
+                                                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-900/40'
+                                                        : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:text-white hover:bg-gray-700'
+                                                }`}
+                                            >
+                                                <span>{getWorkoutAbbr(w.name)}</span>
+                                                {doneInThis > 0 && doneInThis === w.exercises.length && (
+                                                    <span className="text-[9px] text-green-400 mt-0.5">✓</span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Timer */}
+                                <div className="px-4 pb-2.5 flex justify-center">
+                                    <div className={`rounded-full px-5 py-1.5 flex items-center gap-2 border transition-colors text-sm ${
+                                        isWorkoutRunning
+                                            ? 'bg-indigo-900/40 border-indigo-500/50 text-indigo-200'
+                                            : 'bg-gray-800 border-gray-700 text-gray-400'
+                                    }`}>
+                                        <ClockIcon className="w-4 h-4" />
+                                        <span className="font-mono font-bold tracking-wide">
+                                            {isWorkoutRunning ? formatTime(seconds) : (seconds > 0 ? `Final: ${formatTime(seconds)}` : '0m 0s')}
                                         </span>
-                                    )}
-                                    <button
-                                        onClick={() => setActiveTab('plans')}
-                                        className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 bg-indigo-900/30 border border-indigo-500/30 px-3 py-1 rounded-full transition-colors"
-                                    >
-                                        Mudar
-                                    </button>
+                                        {!isWorkoutRunning && seconds === 0 && (
+                                            <button
+                                                onClick={() => setIsWorkoutRunning(true)}
+                                                className="text-indigo-400 font-bold hover:text-indigo-300 transition-colors ml-1"
+                                            >
+                                                ▶ Iniciar
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
+                            </>
                         );
-                    })()}
-                    <div className="px-4 pb-2.5 pt-1.5 flex justify-center">
-                        <div className={`rounded-full px-5 py-1.5 flex items-center space-x-2 border transition-colors
-                            ${isWorkoutRunning ? 'bg-indigo-900/40 border-indigo-500/50 text-indigo-200' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>
-                            <ClockIcon className="w-4 h-4" />
-                            <span className="font-mono font-bold tracking-wide text-sm">
-                                {isWorkoutRunning ? formatTime(seconds) : (seconds > 0 ? `Final: ${formatTime(seconds)}` : '0m 0s')}
-                            </span>
+                    })() : (
+                        <div className="px-4 py-3 flex justify-center">
+                            <div className="bg-gray-800 border border-gray-700 text-gray-500 rounded-full px-5 py-1.5 flex items-center gap-2 text-sm">
+                                <ClockIcon className="w-4 h-4" />
+                                <span className="font-mono font-bold">0m 0s</span>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 <div className="p-4">
@@ -361,15 +414,14 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                                 <DumbbellIcon className="w-10 h-10 text-gray-500" />
                             </div>
                             <div>
-                                <p className="text-white font-bold text-lg">Nenhum treino ativo</p>
-                                <p className="text-gray-400 text-sm mt-1">Vá em Planos e selecione um treino para iniciar a sessão</p>
+                                <p className="text-white font-bold text-lg">Nenhum programa carregado</p>
+                                <p className="text-gray-400 text-sm mt-1">Importe sua ficha de treino em PDF para começar</p>
                             </div>
-                            <button
-                                onClick={() => setActiveTab('plans')}
-                                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-3 rounded-xl transition-colors"
-                            >
-                                Ver Planos
-                            </button>
+                            <label className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold px-6 py-3 rounded-xl transition-all cursor-pointer flex items-center gap-2">
+                                <UploadIcon className="w-5 h-5" />
+                                Importar PDF
+                                <input type="file" accept="application/pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImport(f, 'append'); }} />
+                            </label>
                         </div>
                     ) : (
                         <WorkoutPlanner
@@ -396,8 +448,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                 onImport={handleImport}
                 onSelectAndGo={(index) => {
                     setCurrentIdx(index);
-                    setSeconds(0);
-                    setIsWorkoutRunning(true);
                     setActiveTab('workout');
                 }}
                 onDeleteWorkout={handleDeleteWorkout}
@@ -440,10 +490,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
          </button>
 
          <button
-            onClick={() => {
-              setActiveTab('workout');
-              if (workouts.length > 0 && !isWorkoutRunning) setIsWorkoutRunning(true);
-            }}
+            onClick={() => setActiveTab('workout')}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === 'workout' ? 'text-indigo-400' : 'text-gray-500'}`}
          >
             <DumbbellIcon className="w-6 h-6" />
