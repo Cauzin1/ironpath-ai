@@ -55,9 +55,15 @@ const AuthenticatedApp: React.FC<{ session: Session }> = ({ session }) => {
       if (error) throw error;
       setRole((data?.role as 'aluno' | 'professor') ?? null);
     } catch {
-      setRole(null);
+      // Fallback: usa o papel que o usuário selecionou na tela de login
+      const metaRole = session.user.user_metadata?.selectedRole;
+      if (metaRole === 'professor' || metaRole === 'aluno') {
+        setRole(metaRole);
+      } else {
+        setRole(null);
+      }
     }
-  }, [session.user.id]);
+  }, [session.user.id, session.user.user_metadata?.selectedRole]);
 
   useEffect(() => { fetchRole(); }, [fetchRole]);
 
