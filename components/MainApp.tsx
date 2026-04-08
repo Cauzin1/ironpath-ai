@@ -588,8 +588,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                 onAvatarUpdate={(url) => setUserProfile(prev => prev ? { ...prev, avatar_url: url } : prev)}
                 onProfileUpdate={(p) => setUserProfile(p)}
                 onLogout={async () => {
-                    const { error } = await supabase.auth.signOut();
-                    if (error) throw error;
+                    await supabase.auth.signOut();
+                    window.location.href = '/';
                 }}
                 notifications={workoutReminder}
                 trainerLink={trainerLink}

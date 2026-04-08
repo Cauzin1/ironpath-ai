@@ -103,10 +103,6 @@ export const TrainerApp: React.FC<{ session: Session }> = ({ session }) => {
             profile={profile}
             studentCount={students.length}
             workoutCount={trainerWorkouts.length}
-            onLogout={async () => {
-              const { error } = await supabase.auth.signOut();
-              if (error) throw error;
-            }}
           />
         )}
       </div>

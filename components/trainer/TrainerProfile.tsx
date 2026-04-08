@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../../types';
 import { Session } from '@supabase/supabase-js';
+import { supabase } from '../../supaBaseClient';
 
 interface TrainerProfileProps {
   session: Session;
   profile: UserProfile | null;
   studentCount: number;
   workoutCount: number;
-  onLogout: () => Promise<void>;
 }
 
 export const TrainerProfile: React.FC<TrainerProfileProps> = ({
@@ -15,17 +15,13 @@ export const TrainerProfile: React.FC<TrainerProfileProps> = ({
   profile,
   studentCount,
   workoutCount,
-  onLogout,
 }) => {
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    try {
-      await onLogout();
-    } catch {
-      window.location.reload();
-    }
+    await supabase.auth.signOut();
+    window.location.href = '/';
   };
 
   const name = profile?.name ?? session.user.user_metadata?.full_name ?? session.user.email ?? 'Professor';
