@@ -98,7 +98,16 @@ export const TrainerApp: React.FC<{ session: Session }> = ({ session }) => {
           <TrainerWorkouts trainerId={trainerId} trainerName={trainerName} workouts={trainerWorkouts} students={students} onWorkoutsChange={refreshWorkouts} />
         )}
         {activeTab === 'profile' && (
-          <TrainerProfile session={session} profile={profile} studentCount={students.length} workoutCount={trainerWorkouts.length} />
+          <TrainerProfile
+            session={session}
+            profile={profile}
+            studentCount={students.length}
+            workoutCount={trainerWorkouts.length}
+            onLogout={async () => {
+              const { error } = await supabase.auth.signOut();
+              if (error) throw error;
+            }}
+          />
         )}
       </div>
 
