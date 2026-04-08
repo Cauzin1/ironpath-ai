@@ -58,7 +58,7 @@ const RoleSelection: React.FC<{ onSelect: (r: Role) => void }> = ({ onSelect }) 
 );
 
 // ─── Step 2: Formulário do Aluno ──────────────────────────────────────────────
-const StudentForm: React.FC<{ userId: string; onComplete: () => void }> = ({ userId, onComplete }) => {
+const StudentForm: React.FC<{ userId: string; onComplete: () => void; onBack: () => void }> = ({ userId, onComplete, onBack }) => {
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -106,10 +106,18 @@ const StudentForm: React.FC<{ userId: string; onComplete: () => void }> = ({ use
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <div className="text-4xl mb-3">💪</div>
-          <h1 className="text-2xl font-bold text-white">Perfil do Aluno</h1>
-          <p className="text-gray-400 mt-1">Precisamos conhecer você para calibrar a IA.</p>
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors flex-shrink-0"
+          >
+            ←
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-white">Perfil do Aluno</h1>
+            <p className="text-gray-400 text-sm">Precisamos conhecer você para calibrar a IA.</p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-gray-800 border border-gray-700 rounded-2xl p-6 space-y-5 shadow-2xl">
@@ -184,7 +192,7 @@ const StudentForm: React.FC<{ userId: string; onComplete: () => void }> = ({ use
 };
 
 // ─── Step 2: Formulário do Professor ─────────────────────────────────────────
-const ProfessorForm: React.FC<{ userId: string; onComplete: () => void }> = ({ userId, onComplete }) => {
+const ProfessorForm: React.FC<{ userId: string; onComplete: () => void; onBack: () => void }> = ({ userId, onComplete, onBack }) => {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -217,10 +225,18 @@ const ProfessorForm: React.FC<{ userId: string; onComplete: () => void }> = ({ u
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <div className="text-4xl mb-3">🎓</div>
-          <h1 className="text-2xl font-bold text-white">Perfil do Professor</h1>
-          <p className="text-gray-400 mt-1">Como seus alunos irão te identificar?</p>
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors flex-shrink-0"
+          >
+            ←
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-white">Perfil do Professor</h1>
+            <p className="text-gray-400 text-sm">Como seus alunos irão te identificar?</p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-gray-800 border border-gray-700 rounded-2xl p-6 space-y-5 shadow-2xl">
@@ -259,6 +275,11 @@ export const Onboarding: React.FC<OnboardingProps> = ({ userId, onComplete, init
   const [step, setStep] = useState<1 | 2>(preselected ? 2 : 1);
   const [selectedRole, setSelectedRole] = useState<Role | null>(preselected);
 
+  const goBack = () => {
+    setStep(1);
+    setSelectedRole(null);
+  };
+
   if (step === 1) {
     return (
       <RoleSelection
@@ -271,8 +292,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({ userId, onComplete, init
   }
 
   if (selectedRole === 'professor') {
-    return <ProfessorForm userId={userId} onComplete={onComplete} />;
+    return <ProfessorForm userId={userId} onComplete={onComplete} onBack={goBack} />;
   }
 
-  return <StudentForm userId={userId} onComplete={onComplete} />;
+  return <StudentForm userId={userId} onComplete={onComplete} onBack={goBack} />;
 };

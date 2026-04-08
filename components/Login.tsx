@@ -58,31 +58,36 @@ export const Login: React.FC = () => {
           <p className="text-gray-500 text-sm mt-1">Seu app de treino inteligente</p>
         </div>
 
-        {/* Seletor de papel */}
-        <div className="flex gap-2 mb-4 bg-gray-800/60 border border-gray-700/50 rounded-2xl p-1.5">
-          <button
-            type="button"
-            onClick={() => setSelectedRole('aluno')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
-              selectedRole === 'aluno'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <span>💪</span> Sou Aluno
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedRole('professor')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
-              selectedRole === 'professor'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <span>🎓</span> Sou Professor
-          </button>
-        </div>
+        {/* Seletor de papel — apenas no cadastro */}
+        {isSignUp && (
+          <div className="space-y-2 mb-2">
+            <p className="text-center text-gray-400 text-xs font-semibold uppercase tracking-wider">Você é…</p>
+            <div className="flex gap-2 bg-gray-800/60 border border-gray-700/50 rounded-2xl p-1.5">
+              <button
+                type="button"
+                onClick={() => setSelectedRole('aluno')}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
+                  selectedRole === 'aluno'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>💪</span> Aluno
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedRole('professor')}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
+                  selectedRole === 'professor'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>🎓</span> Professor
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Formulário */}
         <form onSubmit={handleAuth} className="bg-gray-800/40 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-2xl p-8 space-y-6">
@@ -94,7 +99,11 @@ export const Login: React.FC = () => {
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full bg-gray-900/50 border border-gray-600 rounded-lg py-3 px-4 text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none placeholder-gray-500"
+                className={`w-full bg-gray-900/50 border border-gray-600 rounded-lg py-3 px-4 text-white outline-none placeholder-gray-500 ${
+                  isSignUp && selectedRole === 'professor'
+                    ? 'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'
+                    : 'focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                }`}
                 placeholder="seu@email.com"
               />
             </div>
@@ -106,7 +115,11 @@ export const Login: React.FC = () => {
                 minLength={6}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full bg-gray-900/50 border border-gray-600 rounded-lg py-3 px-4 text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none placeholder-gray-500"
+                className={`w-full bg-gray-900/50 border border-gray-600 rounded-lg py-3 px-4 text-white outline-none placeholder-gray-500 ${
+                  isSignUp && selectedRole === 'professor'
+                    ? 'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'
+                    : 'focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                }`}
                 placeholder="••••••"
               />
             </div>
