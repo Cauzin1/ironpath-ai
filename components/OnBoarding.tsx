@@ -5,6 +5,7 @@ import { DumbbellIcon } from './icons';
 interface OnboardingProps {
   userId: string;
   onComplete: () => void;
+  initialRole?: string;
 }
 
 type Role = 'aluno' | 'professor';
@@ -253,9 +254,10 @@ const ProfessorForm: React.FC<{ userId: string; onComplete: () => void }> = ({ u
 };
 
 // ─── Componente principal ─────────────────────────────────────────────────────
-export const Onboarding: React.FC<OnboardingProps> = ({ userId, onComplete }) => {
-  const [step, setStep] = useState<1 | 2>(1);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+export const Onboarding: React.FC<OnboardingProps> = ({ userId, onComplete, initialRole }) => {
+  const preselected = initialRole === 'professor' || initialRole === 'aluno' ? initialRole as Role : null;
+  const [step, setStep] = useState<1 | 2>(preselected ? 2 : 1);
+  const [selectedRole, setSelectedRole] = useState<Role | null>(preselected);
 
   if (step === 1) {
     return (

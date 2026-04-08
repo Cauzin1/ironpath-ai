@@ -342,7 +342,7 @@ export const MainApp: React.FC<{ session: Session; onRoleChange?: () => void }> 
   // --- RENDERIZAÇÃO ---
 
   if (checkingProfile) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Carregando...</div>;
-  if (!userProfile) return <Onboarding userId={session.user.id} onComplete={() => window.location.reload()} />;
+  if (!userProfile) return <Onboarding userId={session.user.id} initialRole={session.user.user_metadata?.selectedRole} onComplete={() => window.location.reload()} />;
 
   return (
     <div className="min-h-screen bg-gray-900 pb-20 pb-safe relative">
