@@ -53,7 +53,7 @@ export const TrainerApp: React.FC<{ session: Session }> = ({ session }) => {
 
   if (checkingProfile) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent" />
       </div>
     );
@@ -72,9 +72,9 @@ export const TrainerApp: React.FC<{ session: Session }> = ({ session }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-gray-900">
       {/* Top header */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-gray-950/95 backdrop-blur-md border-b border-gray-800/60">
+      <div className="fixed top-0 left-0 right-0 z-40 bg-gray-900/95 backdrop-blur-md border-b border-gray-800/60">
         <div className="max-w-md mx-auto flex items-center justify-between px-4 h-14">
           {/* Avatar */}
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-900/40">
@@ -103,7 +103,7 @@ export const TrainerApp: React.FC<{ session: Session }> = ({ session }) => {
       </div>
 
       {/* Bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gray-950/95 backdrop-blur-md border-t border-gray-800/60 pb-safe">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gray-900/95 backdrop-blur-md border-t border-gray-800/60 pb-safe">
         <div className="max-w-md mx-auto h-16 flex items-center justify-around px-4">
           {tabs.map(({ key, Icon, label }) => {
             const isActive = activeTab === key;
