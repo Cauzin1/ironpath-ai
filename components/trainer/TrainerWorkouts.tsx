@@ -226,27 +226,27 @@ export const TrainerWorkouts: React.FC<TrainerWorkoutsProps> = ({
     {assignModal && (
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={() => setAssignModal(null)}>
         <div
-          className="bg-gray-900 border-t border-gray-800 rounded-t-3xl w-full max-w-md overflow-y-auto"
+          className="bg-gray-900 border-t border-gray-800 rounded-t-3xl w-full max-w-md flex flex-col"
           style={{ maxHeight: '85vh' }}
           onClick={e => e.stopPropagation()}
         >
-          {/* Handle */}
-          <div className="flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 bg-gray-700 rounded-full" />
-          </div>
-
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4">
-            <div>
-              <h3 className="text-white font-bold text-lg">Atribuir Programa</h3>
-              <p className="text-gray-500 text-sm truncate max-w-[220px]">{assignModal.name}</p>
+          {/* Handle + Header — nunca rola */}
+          <div className="flex-shrink-0">
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-gray-700 rounded-full" />
             </div>
-            <button onClick={() => setAssignModal(null)}
-              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white text-2xl rounded-xl hover:bg-gray-800 transition-colors">×</button>
+            <div className="flex items-center justify-between px-5 py-4">
+              <div>
+                <h3 className="text-white font-bold text-lg">Atribuir Programa</h3>
+                <p className="text-gray-500 text-sm truncate max-w-[220px]">{assignModal.name}</p>
+              </div>
+              <button onClick={() => setAssignModal(null)}
+                className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white text-2xl rounded-xl hover:bg-gray-800 transition-colors">×</button>
+            </div>
           </div>
 
           {assignSuccess ? (
-            <div className="flex flex-col items-center py-10 gap-3 px-5 pb-12">
+            <div className="flex flex-col items-center py-10 gap-3 px-5 pb-12 flex-shrink-0">
               <div className="w-16 h-16 bg-emerald-500/20 border border-emerald-500/30 rounded-full flex items-center justify-center text-3xl">
                 ✅
               </div>
@@ -254,43 +254,44 @@ export const TrainerWorkouts: React.FC<TrainerWorkoutsProps> = ({
               <p className="text-gray-500 text-sm">O aluno já pode ativar o programa</p>
             </div>
           ) : (
-            <div className="px-5">
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">Selecionar aluno</p>
-
-              {/* Lista de alunos */}
-              <div className="space-y-2">
-                {students.map(s => (
-                  <button
-                    key={s.id}
-                    onClick={() => setSelectedStudentId(selectedStudentId === s.student_id ? '' : s.student_id)}
-                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border transition-all active:scale-[0.98] ${
-                      selectedStudentId === s.student_id
-                        ? 'bg-emerald-500/15 border-emerald-500/40'
-                        : 'bg-gray-800/60 border-gray-700/50 hover:border-gray-600'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradient(s.student_name)} flex items-center justify-center flex-shrink-0`}>
-                      <span className="text-white font-black">{s.student_name.charAt(0).toUpperCase()}</span>
-                    </div>
-                    <span className="text-white font-semibold flex-1 text-left">{s.student_name}</span>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                      selectedStudentId === s.student_id
-                        ? 'bg-emerald-500 border-emerald-500'
-                        : 'border-gray-600'
-                    }`}>
-                      {selectedStudentId === s.student_id && (
-                        <span className="text-white text-xs font-black">✓</span>
-                      )}
-                    </div>
-                  </button>
-                ))}
+            <>
+              {/* Lista de alunos — rola quando necessário */}
+              <div className="flex-1 overflow-y-auto min-h-0 px-5 pt-1 pb-2">
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">Selecionar aluno</p>
+                <div className="space-y-2">
+                  {students.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => setSelectedStudentId(selectedStudentId === s.student_id ? '' : s.student_id)}
+                      className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border transition-all active:scale-[0.98] ${
+                        selectedStudentId === s.student_id
+                          ? 'bg-emerald-500/15 border-emerald-500/40'
+                          : 'bg-gray-800/60 border-gray-700/50 hover:border-gray-600'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradient(s.student_name)} flex items-center justify-center flex-shrink-0`}>
+                        <span className="text-white font-black">{s.student_name.charAt(0).toUpperCase()}</span>
+                      </div>
+                      <span className="text-white font-semibold flex-1 text-left">{s.student_name}</span>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                        selectedStudentId === s.student_id
+                          ? 'bg-emerald-500 border-emerald-500'
+                          : 'border-gray-600'
+                      }`}>
+                        {selectedStudentId === s.student_id && (
+                          <span className="text-white text-xs font-black">✓</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {assignError && (
+                  <p className="mt-3 text-red-400 text-sm bg-red-900/20 border border-red-700/30 rounded-xl px-4 py-3">{assignError}</p>
+                )}
               </div>
 
-              {assignError && (
-                <p className="mt-3 text-red-400 text-sm bg-red-900/20 border border-red-700/30 rounded-xl px-4 py-3">{assignError}</p>
-              )}
-
-              <div className="sticky bottom-0 bg-gray-900 pt-4 pb-10 mt-4">
+              {/* Botão confirmar — sempre visível, nunca rola */}
+              <div className="flex-shrink-0 px-5 pt-4 pb-10 bg-gray-900 border-t border-gray-800/60">
                 <button
                   onClick={handleAssign}
                   disabled={!selectedStudentId || assigning}
@@ -301,7 +302,7 @@ export const TrainerWorkouts: React.FC<TrainerWorkoutsProps> = ({
                     : 'Confirmar Atribuição'}
                 </button>
               </div>
-            </div>
+            </>
           )}
         </div>
       </div>
