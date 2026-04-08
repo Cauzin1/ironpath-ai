@@ -15,6 +15,8 @@ export interface Exercise {
   isFinished: boolean;     // Controla se o exercício foi finalizado/colapsado
   rpe?: number;            // Percepção de Esforço da sessão atual: 1-10
   history: HistoryEntry[];
+  restTime?: number;   // segundos de descanso entre séries (ex: 60, 90, 120)
+  notes?: string;      // observações do professor para este exercício
 }
 
 export interface Workout {

@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { TrainerWorkout, Workout } from '../../types';
 import { TrashIcon, PlusCircleIcon, CheckCircleIcon } from '../icons';
 import { ExercisePicker } from './ExercisePicker';
+import { exportWorkoutPdf } from '../../services/exportWorkoutPdf';
 
 interface ExerciseDraft {
   tempId: number;
@@ -9,6 +10,8 @@ interface ExerciseDraft {
   sets: number;
   reps: number;
   startingWeight: number;
+  restTime: number;   // seconds
+  notes: string;
 }
 
 interface DayDraft {
@@ -20,6 +23,7 @@ interface DayDraft {
 
 interface WorkoutBuilderProps {
   trainerId: string;
+  trainerName: string;
   initial?: TrainerWorkout | null;
   onSave: (name: string, workouts: Workout[]) => Promise<void>;
   onCancel: () => void;
@@ -35,6 +39,7 @@ let _idSeq = Date.now();
 const nextId = () => ++_idSeq;
 
 export const WorkoutBuilder: React.FC<WorkoutBuilderProps> = ({
+  trainerName,
   initial,
   onSave,
   onCancel,
@@ -51,10 +56,19 @@ export const WorkoutBuilder: React.FC<WorkoutBuilderProps> = ({
           sets: e.sets,
           reps: e.reps,
           startingWeight: e.currentWeight,
+          restTime: e.restTime ?? 60,
+          notes: e.notes ?? '',
         })),
       }));
     }
     return [{ tempId: nextId(), name: 'Treino A', scheduledDays: '', exercises: [] }];
+  };
+
+  const formatRest = (s: number) => {
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return rem === 0 ? `${m}min` : `${m}m${rem}s`;
   };
 
   const [programName, setProgramName] = useState(initial?.name ?? '');
@@ -95,7 +109,7 @@ export const WorkoutBuilder: React.FC<WorkoutBuilderProps> = ({
   // ── Exercise operations ──────────────────────────────────────────────────────
 
   const addExerciseByName = (dayTempId: number, name: string) => {
-    const ex: ExerciseDraft = { tempId: nextId(), name, sets: 3, reps: 10, startingWeight: 0 };
+    const ex: ExerciseDraft = { tempId: nextId(), name, sets: 3, reps: 10, startingWeight: 0, restTime: 60, notes: '' };
     setDays(d => d.map(x =>
       x.tempId === dayTempId ? { ...x, exercises: [...x.exercises, ex] } : x
     ));
@@ -137,6 +151,8 @@ export const WorkoutBuilder: React.FC<WorkoutBuilderProps> = ({
         sets: e.sets,
         reps: e.reps,
         currentWeight: e.startingWeight,
+        restTime: e.restTime,
+        notes: e.notes.trim() || undefined,
         completedSets: [],
         isFinished: false,
         history: [],
@@ -255,8 +271,8 @@ export const WorkoutBuilder: React.FC<WorkoutBuilderProps> = ({
                     </button>
                   </div>
 
-                  {/* Controls */}
-                  <div className="flex items-center gap-2 px-3 pb-3">
+                  {/* Controls row 1: Sets / Reps / Weight */}
+                  <div className="flex items-center gap-2 px-3 pb-2">
                     {/* Sets */}
                     <div className="flex-1 flex flex-col items-center gap-1 bg-gray-800/80 rounded-lg py-2">
                       <span className="text-gray-500 text-[9px] uppercase font-bold">Séries</span>
@@ -302,6 +318,35 @@ export const WorkoutBuilder: React.FC<WorkoutBuilderProps> = ({
                       />
                     </div>
                   </div>
+
+                  {/* Controls row 2: Rest time */}
+                  <div className="px-3 pb-2">
+                    <div className="flex items-center gap-2 bg-gray-800/80 rounded-lg py-2 px-3">
+                      <span className="text-gray-500 text-[9px] uppercase font-bold flex-shrink-0">Descanso</span>
+                      <div className="flex items-center gap-2 ml-auto">
+                        <button
+                          onClick={() => updateExercise(activeDay.tempId, ex.tempId, { restTime: Math.max(15, ex.restTime - 15) })}
+                          className="w-7 h-7 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm flex items-center justify-center active:scale-90 transition-all"
+                        >−</button>
+                        <span className="text-white font-black text-sm w-14 text-center">{formatRest(ex.restTime)}</span>
+                        <button
+                          onClick={() => updateExercise(activeDay.tempId, ex.tempId, { restTime: Math.min(300, ex.restTime + 15) })}
+                          className="w-7 h-7 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm flex items-center justify-center active:scale-90 transition-all"
+                        >+</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Controls row 3: Notes */}
+                  <div className="px-3 pb-3">
+                    <textarea
+                      rows={2}
+                      placeholder="Observações (ex: manter escápulas retraídas, controlar excêntrica...)"
+                      value={ex.notes}
+                      onChange={e => updateExercise(activeDay.tempId, ex.tempId, { notes: e.target.value })}
+                      className="w-full bg-gray-800/80 border border-gray-700/50 rounded-lg p-2.5 text-white text-xs placeholder-gray-600 outline-none focus:border-emerald-600 resize-none"
+                    />
+                  </div>
                 </div>
               ))}
 
@@ -336,27 +381,54 @@ export const WorkoutBuilder: React.FC<WorkoutBuilderProps> = ({
         )}
 
         {/* Actions */}
-        <div className="flex gap-3 mt-5">
+        <div className="space-y-2 mt-5">
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              disabled={saving}
+              className="flex-1 py-4 rounded-2xl bg-gray-800 border border-gray-700 text-gray-300 font-semibold hover:bg-gray-700 transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex-1 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {saving ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <CheckCircleIcon className="w-5 h-5" />
+                  Salvar Programa
+                </>
+              )}
+            </button>
+          </div>
           <button
-            onClick={onCancel}
-            disabled={saving}
-            className="flex-1 py-4 rounded-2xl bg-gray-800 border border-gray-700 text-gray-300 font-semibold hover:bg-gray-700 transition-colors disabled:opacity-50"
+            type="button"
+            onClick={() => {
+              const workoutsForPdf = days.map(d => ({
+                name: d.name.trim() || `Dia`,
+                scheduledDays: d.scheduledDays.trim(),
+                exercises: d.exercises.map((e, i) => ({
+                  id: i + 1,
+                  name: e.name.trim(),
+                  sets: e.sets,
+                  reps: e.reps,
+                  currentWeight: e.startingWeight,
+                  restTime: e.restTime,
+                  notes: e.notes.trim() || undefined,
+                  completedSets: [],
+                  isFinished: false,
+                  history: [],
+                })),
+              }));
+              exportWorkoutPdf(programName.trim() || 'Programa', trainerName, workoutsForPdf);
+            }}
+            className="w-full py-3.5 rounded-2xl border border-gray-600 text-gray-300 font-semibold hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 text-sm"
           >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {saving ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <>
-                <CheckCircleIcon className="w-5 h-5" />
-                Salvar Programa
-              </>
-            )}
+            📄 Exportar como PDF
           </button>
         </div>
       </div>

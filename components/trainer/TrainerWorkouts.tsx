@@ -93,6 +93,7 @@ export const TrainerWorkouts: React.FC<TrainerWorkoutsProps> = ({
         </div>
         <WorkoutBuilder
           trainerId={trainerId}
+          trainerName={trainerName}
           initial={editing}
           onSave={handleSave}
           onCancel={() => { setShowBuilder(false); setEditing(null); }}
