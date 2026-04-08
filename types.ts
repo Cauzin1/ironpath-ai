@@ -44,6 +44,46 @@ export interface UserProfile {
   experience_level: string;
   goal: string;
   avatar_url?: string;
+  role?: 'aluno' | 'professor';
+}
+
+export interface TrainerStudent {
+  id: string;
+  trainer_id: string;
+  student_id: string;
+  student_name: string;
+  trainer_name: string;
+  joined_at: string;
+}
+
+export interface TrainerWorkout {
+  id: string;
+  trainer_id: string;
+  name: string;
+  workouts: Workout[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AssignedWorkout {
+  id: string;
+  trainer_id: string;
+  student_id: string;
+  trainer_workout_id: string | null;
+  workout_name: string;
+  workouts: Workout[];
+  trainer_name: string;
+  assigned_at: string;
+  is_active: boolean;
+  activated_at: string | null;
+}
+
+export interface TrainerInvite {
+  id: string;
+  trainer_id: string;
+  trainer_name: string;
+  code: string;
+  created_at: string;
 }
 
 // Adicione essas interfaces se ainda não existirem

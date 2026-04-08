@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UserProfile } from '../types';
+import { UserProfile, TrainerStudent } from '../types';
 import { UserIcon, BellIcon } from './icons';
 import { supabase } from '../supaBaseClient';
 import type { ReminderConfig } from '../hooks/useWorkoutReminder';
@@ -20,6 +20,9 @@ interface ProfileTabProps {
   onProfileUpdate: (profile: UserProfile) => void;
   onLogout: () => Promise<any>;
   notifications: NotificationSettings;
+  trainerLink?: TrainerStudent | null;
+  onJoinTrainer?: (code: string) => Promise<void>;
+  onLeaveTrainer?: () => Promise<void>;
 }
 
 const LEVELS = [
@@ -43,8 +46,16 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
   onProfileUpdate,
   onLogout,
   notifications,
+  trainerLink,
+  onJoinTrainer,
+  onLeaveTrainer,
 }) => {
   const [loggingOut, setLoggingOut]   = useState(false);
+  const [inviteCode, setInviteCode]   = useState('');
+  const [joiningTrainer, setJoiningTrainer] = useState(false);
+  const [trainerError, setTrainerError]     = useState<string | null>(null);
+  const [leavingTrainer, setLeavingTrainer] = useState(false);
+  const [confirmLeave, setConfirmLeave]     = useState(false);
   const [uploading, setUploading]     = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -336,6 +347,94 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
           )}
         </div>
       )}
+
+      {/* Vincular com Professor */}
+      <div className="bg-gray-800/50 rounded-2xl border border-gray-700 p-4 space-y-3">
+        <p className="text-white font-bold text-sm">Meu Professor</p>
+
+        {trainerLink ? (
+          <>
+            <div className="flex items-center gap-3 bg-emerald-900/20 border border-emerald-700/30 rounded-xl p-3">
+              <div className="w-9 h-9 bg-emerald-600/30 rounded-full flex items-center justify-center text-emerald-300 font-bold flex-shrink-0">
+                {trainerLink.trainer_name.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-semibold text-sm truncate">{trainerLink.trainer_name}</p>
+                <p className="text-emerald-500 text-xs">🎓 Treinador vinculado</p>
+              </div>
+            </div>
+
+            {confirmLeave ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmLeave(false)}
+                  disabled={leavingTrainer}
+                  className="flex-1 py-3 rounded-xl bg-gray-700 text-gray-300 text-sm font-semibold hover:bg-gray-600 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    setLeavingTrainer(true);
+                    try { await onLeaveTrainer?.(); setConfirmLeave(false); } finally { setLeavingTrainer(false); }
+                  }}
+                  disabled={leavingTrainer}
+                  className="flex-1 py-3 rounded-xl bg-red-900/60 border border-red-700/50 text-red-300 text-sm font-semibold hover:bg-red-900 transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  {leavingTrainer
+                    ? <div className="w-4 h-4 border-2 border-red-300/30 border-t-red-300 rounded-full animate-spin" />
+                    : 'Desvincular'
+                  }
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmLeave(true)}
+                className="w-full py-3 rounded-xl border border-red-900/50 text-red-500 text-sm font-semibold hover:bg-red-900/20 transition-colors"
+              >
+                Desvincular Professor
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="text-gray-400 text-xs">Digite o código de convite do seu professor para receber treinos.</p>
+            <input
+              type="text"
+              placeholder="Código de 6 caracteres"
+              maxLength={6}
+              value={inviteCode}
+              onChange={e => { setInviteCode(e.target.value.toUpperCase()); setTrainerError(null); }}
+              className="w-full bg-gray-900 border border-gray-600 rounded-xl p-3 text-white text-sm text-center font-bold tracking-widest focus:border-indigo-500 outline-none uppercase"
+            />
+            {trainerError && (
+              <p className="text-red-400 text-xs">{trainerError}</p>
+            )}
+            <button
+              onClick={async () => {
+                if (inviteCode.trim().length < 4) { setTrainerError('Código inválido.'); return; }
+                setJoiningTrainer(true);
+                setTrainerError(null);
+                try {
+                  await onJoinTrainer?.(inviteCode.trim());
+                  setInviteCode('');
+                } catch (err: any) {
+                  setTrainerError(err?.message ?? 'Código não encontrado.');
+                } finally {
+                  setJoiningTrainer(false);
+                }
+              }}
+              disabled={joiningTrainer || inviteCode.trim().length < 4}
+              className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors disabled:opacity-50 flex items-center justify-center min-h-[44px]"
+            >
+              {joiningTrainer
+                ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                : 'Entrar com Código'
+              }
+            </button>
+          </>
+        )}
+      </div>
 
       {/* Sair */}
       <button

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Workout } from '../types';
+import { Workout, AssignedWorkout } from '../types';
 import { UploadIcon, DumbbellIcon, PlayIcon } from './icons';
 
 interface WorkoutsTabProps {
@@ -8,6 +8,8 @@ interface WorkoutsTabProps {
   onImport: (file: File, mode: 'replace' | 'append') => void;
   onSelectAndGo: (index: number) => void;
   onDeleteWorkout: (index: number) => void;
+  assignedWorkouts?: AssignedWorkout[];
+  onActivateAssignment?: (a: AssignedWorkout) => Promise<void>;
 }
 
 const getDayAbbr = (name: string): string => {
@@ -29,8 +31,12 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
   onImport,
   onSelectAndGo,
   onDeleteWorkout,
+  assignedWorkouts = [],
+  onActivateAssignment,
 }) => {
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [confirmActivate, setConfirmActivate] = useState<string | null>(null);
+  const [activating, setActivating] = useState(false);
 
   return (
     <div className="p-5 space-y-5 pb-28">
@@ -39,6 +45,75 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
         <h1 className="text-2xl font-black text-white">Meus Planos</h1>
         <p className="text-gray-400 text-sm mt-0.5">Gerencie seu programa de treino</p>
       </div>
+
+      {/* Programas do Professor */}
+      {assignedWorkouts.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-gray-500 text-xs uppercase tracking-wider font-semibold px-1">Programas do Professor</p>
+          {assignedWorkouts.map(a => (
+            <div key={a.id} className="bg-gray-800/60 border border-gray-700/50 rounded-2xl overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-emerald-600/20 border border-emerald-500/30 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">
+                    🎓
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-bold leading-tight truncate">{a.workout_name}</p>
+                    <p className="text-emerald-400 text-xs mt-0.5">Prof. {a.trainer_name}</p>
+                    <p className="text-gray-500 text-xs">
+                      {a.workouts.length} dia{a.workouts.length !== 1 ? 's' : ''} ·{' '}
+                      {a.workouts.reduce((acc, w) => acc + w.exercises.length, 0)} exercícios
+                    </p>
+                  </div>
+                  {a.is_active && (
+                    <span className="flex-shrink-0 bg-emerald-900/40 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold px-2 py-1 rounded-full">
+                      Ativo
+                    </span>
+                  )}
+                </div>
+
+                {!a.is_active && (
+                  confirmActivate === a.id ? (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-gray-400 text-xs text-center">Isso substituirá seu programa atual.</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setConfirmActivate(null)}
+                          disabled={activating}
+                          className="flex-1 py-2.5 rounded-xl bg-gray-700 text-gray-300 text-sm font-semibold hover:bg-gray-600 transition-colors disabled:opacity-50"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!onActivateAssignment) return;
+                            setActivating(true);
+                            try { await onActivateAssignment(a); } finally { setActivating(false); setConfirmActivate(null); }
+                          }}
+                          disabled={activating}
+                          className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center"
+                        >
+                          {activating
+                            ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            : 'Confirmar'
+                          }
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmActivate(a.id)}
+                      className="mt-3 w-full py-2.5 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 text-sm font-bold hover:bg-emerald-600/30 transition-colors active:scale-95"
+                    >
+                      Ativar Programa
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Empty state */}
       {workouts.length === 0 ? (

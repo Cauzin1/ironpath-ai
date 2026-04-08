@@ -5,9 +5,16 @@ import { HomeTab } from './HomeTab';
 import { ProfileTab } from './ProfileTab';
 import { WorkoutsTab } from './WorkoutsTab';
 import WebDashboard from './WebDashboard';
-import { Workout, Suggestion, UserProfile } from '../types';
+import { Workout, Suggestion, UserProfile, AssignedWorkout, TrainerStudent } from '../types';
 import { getWorkoutFromPDF } from '../services/geminiService';
 import { supabase } from '../supaBaseClient';
+import {
+  getAssignedWorkoutsForStudent,
+  activateAssignedWorkout,
+  getMyTrainer,
+  joinByInviteCode,
+  leaveTrainer,
+} from '../services/trainerService';
 import { Session } from '@supabase/supabase-js';
 import { useWorkoutReminder } from '../hooks/useWorkoutReminder';
 import {
@@ -35,7 +42,7 @@ const getWorkoutTabSub = (name: string): string => {
   return muscles.length > 12 ? muscles.substring(0, 11) + '…' : muscles;
 };
 
-export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
+export const MainApp: React.FC<{ session: Session; onRoleChange?: () => void }> = ({ session }) => {
   // Dados
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -53,6 +60,10 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
 
   // Import error banner
   const [importError, setImportError] = useState<string | null>(null);
+
+  // Trainer/assigned workouts
+  const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([]);
+  const [trainerLink, setTrainerLink] = useState<TrainerStudent | null>(null);
 
   // Workout reminders
   const workoutReminder = useWorkoutReminder(completedDates);
@@ -100,6 +111,13 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
         setCompletedDates(progress.completed_dates || []);
         setCurrentIdx(progress.current_workout_index || 0);
       }
+      const [assigned, trainer] = await Promise.all([
+        getAssignedWorkoutsForStudent(session.user.id),
+        getMyTrainer(session.user.id),
+      ]);
+      setAssignedWorkouts(assigned);
+      setTrainerLink(trainer);
+
       setCheckingProfile(false);
     };
     loadData();
@@ -285,6 +303,33 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
       setSeconds(0);
       setIsWorkoutRunning(false);
   }, [currentIdx]);
+
+  const handleActivateAssignment = async (assignment: AssignedWorkout) => {
+    await activateAssignedWorkout(assignment, session.user.id, completedDates);
+    setWorkouts(assignment.workouts);
+    setCurrentIdx(0);
+    setSeconds(0);
+    setIsWorkoutRunning(false);
+    const refreshed = await getAssignedWorkoutsForStudent(session.user.id);
+    setAssignedWorkouts(refreshed);
+    setActiveTab('plans');
+  };
+
+  const handleJoinTrainer = async (code: string) => {
+    const studentName = userProfile?.name ?? session.user.user_metadata?.full_name ?? 'Aluno';
+    await joinByInviteCode(code, session.user.id, studentName);
+    const trainer = await getMyTrainer(session.user.id);
+    setTrainerLink(trainer);
+    const assigned = await getAssignedWorkoutsForStudent(session.user.id);
+    setAssignedWorkouts(assigned);
+  };
+
+  const handleLeaveTrainer = async () => {
+    if (!trainerLink) return;
+    await leaveTrainer(session.user.id);
+    setTrainerLink(null);
+    setAssignedWorkouts([]);
+  };
 
   // Navega para aba Treino e auto-inicia o timer se ainda não rodando
   const goToWorkout = () => {
@@ -497,6 +542,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                     goToWorkout();
                 }}
                 onDeleteWorkout={handleDeleteWorkout}
+                assignedWorkouts={assignedWorkouts}
+                onActivateAssignment={handleActivateAssignment}
             />
         )}
 
@@ -518,6 +565,9 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                     if (error) throw error;
                 }}
                 notifications={workoutReminder}
+                trainerLink={trainerLink}
+                onJoinTrainer={handleJoinTrainer}
+                onLeaveTrainer={handleLeaveTrainer}
             />
         )}
 
