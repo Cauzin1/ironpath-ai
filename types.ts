@@ -30,6 +30,9 @@ export interface Suggestion {
   suggestedWeight: number;
   currentWeight?: number; // Carga usada na sessão atual (para mostrar o delta)
   message: string;
+  recommendation_type?: 'increase' | 'maintain' | 'decrease' | 'deload' | 'plateau';
+  technique?: string | null;
+  periodization_note?: string | null;
 }
 
 export interface UserProfile {

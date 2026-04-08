@@ -1,7 +1,16 @@
 import React, { useState, useRef } from 'react';
 import { UserProfile } from '../types';
-import { UserIcon } from './icons';
+import { UserIcon, BellIcon } from './icons';
 import { supabase } from '../supaBaseClient';
+import type { ReminderConfig } from '../hooks/useWorkoutReminder';
+
+interface NotificationSettings {
+  permission: NotificationPermission;
+  config: ReminderConfig;
+  requestPermission: () => Promise<NotificationPermission>;
+  saveConfig: (c: ReminderConfig) => void;
+  isSupported: boolean;
+}
 
 interface ProfileTabProps {
   profile: UserProfile;
@@ -10,6 +19,7 @@ interface ProfileTabProps {
   onAvatarUpdate: (url: string) => void;
   onProfileUpdate: (profile: UserProfile) => void;
   onLogout: () => Promise<any>;
+  notifications: NotificationSettings;
 }
 
 const LEVELS = [
@@ -32,6 +42,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
   onAvatarUpdate,
   onProfileUpdate,
   onLogout,
+  notifications,
 }) => {
   const [loggingOut, setLoggingOut]   = useState(false);
   const [uploading, setUploading]     = useState(false);
@@ -257,6 +268,72 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
               }
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Lembretes de treino */}
+      {notifications.isSupported && (
+        <div className="bg-gray-800/50 rounded-2xl border border-gray-700 p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <BellIcon className="w-4 h-4 text-indigo-400" />
+            <p className="text-white font-bold text-sm">Lembretes de Treino</p>
+          </div>
+
+          {notifications.permission === 'denied' ? (
+            <p className="text-xs text-red-400 bg-red-900/20 border border-red-700/30 rounded-xl px-3 py-2">
+              Notificações bloqueadas pelo navegador. Habilite nas configurações do dispositivo.
+            </p>
+          ) : notifications.permission === 'default' ? (
+            <div className="space-y-3">
+              <p className="text-xs text-gray-400">Ative para receber um lembrete quando não treinar no horário escolhido.</p>
+              <button
+                onClick={async () => {
+                  const result = await notifications.requestPermission();
+                  if (result === 'granted') {
+                    notifications.saveConfig({ ...notifications.config, enabled: true });
+                  }
+                }}
+                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors active:scale-95 min-h-[44px]"
+              >
+                Permitir Notificações
+              </button>
+            </div>
+          ) : (
+            /* permission === 'granted' */
+            <div className="space-y-4">
+              {/* Toggle */}
+              <div className="flex items-center justify-between">
+                <span className="text-gray-300 text-sm">Ativar lembretes</span>
+                <button
+                  onClick={() => notifications.saveConfig({ ...notifications.config, enabled: !notifications.config.enabled })}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    notifications.config.enabled ? 'bg-indigo-600' : 'bg-gray-600'
+                  }`}
+                  aria-label="Toggle lembretes"
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                    notifications.config.enabled ? 'translate-x-6' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+
+              {/* Time picker */}
+              {notifications.config.enabled && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Horário do lembrete</label>
+                  <input
+                    type="time"
+                    value={notifications.config.time}
+                    onChange={e => notifications.saveConfig({ ...notifications.config, time: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-600 rounded-xl p-3 text-white text-sm focus:border-indigo-500 outline-none"
+                  />
+                  <p className="text-[11px] text-gray-500">
+                    Você receberá uma notificação neste horário nos dias em que não treinar.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Workout } from '../types';
 import { calculateStreak, getWeeklyCount, getMaxStreak } from '../utils/gamification';
 
@@ -6,6 +6,15 @@ interface WebDashboardProps {
   workouts: Workout[];
   completedDates: string[];
 }
+
+type ExerciseStat = {
+  name: string;
+  sessions: number;
+  startWeight: number;
+  currentWeight: number;
+  delta: number;
+  pairs: { date: string; weight: number }[];
+};
 
 function getLocalDate(offset = 0): string {
   const d = new Date();
@@ -18,8 +27,14 @@ function formatShortDate(iso: string): string {
   return `${day}/${month}`;
 }
 
+function formatFullDate(iso: string): string {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
 const WebDashboard: React.FC<WebDashboardProps> = ({ workouts, completedDates }) => {
   const dateSet = useMemo(() => new Set(completedDates), [completedDates]);
+  const [selectedExercise, setSelectedExercise] = useState<ExerciseStat | null>(null);
 
   // ── Quick stats ────────────────────────────────────────────────────────
   const totalWorkouts = completedDates.length;
@@ -62,7 +77,7 @@ const WebDashboard: React.FC<WebDashboardProps> = ({ workouts, completedDates })
   const maxWeekly = Math.max(...weeklyBars.map(w => w.count), 1);
 
   // ── Exercises with progression ─────────────────────────────────────────
-  const exerciseProgress = useMemo(() => {
+  const exerciseProgress = useMemo<ExerciseStat[]>(() => {
     const map = new Map<string, { dates: string[]; weights: number[] }>();
 
     for (const workout of workouts) {
@@ -202,6 +217,9 @@ const WebDashboard: React.FC<WebDashboardProps> = ({ workouts, completedDates })
             {!hasExerciseHistory && (
               <p className="text-gray-500 text-xs mt-0.5">Complete mais sessões para ver sua progressão</p>
             )}
+            {hasExerciseHistory && (
+              <p className="text-gray-500 text-xs mt-0.5">Toque em um exercício para ver o histórico completo</p>
+            )}
           </div>
 
           {exerciseProgress.length === 0 ? (
@@ -215,11 +233,15 @@ const WebDashboard: React.FC<WebDashboardProps> = ({ workouts, completedDates })
                 const deltaNeg = ex.delta < 0;
                 const maxW = Math.max(...ex.pairs.map(p => p.weight), 1);
                 return (
-                  <div key={ex.name} className="px-4 py-3">
+                  <button
+                    key={ex.name}
+                    onClick={() => setSelectedExercise(ex)}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-700/30 active:bg-gray-700/50 transition-colors"
+                  >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-white text-sm font-semibold truncate">{ex.name}</p>
-                        <p className="text-gray-500 text-[11px]">{ex.sessions} {ex.sessions === 1 ? 'sessão' : 'sessões'}</p>
+                        <p className="text-gray-500 text-[11px]">{ex.sessions} {ex.sessions === 1 ? 'sessão' : 'sessões'} · toque para detalhes</p>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-white font-bold text-sm">{ex.currentWeight} kg</p>
@@ -252,7 +274,7 @@ const WebDashboard: React.FC<WebDashboardProps> = ({ workouts, completedDates })
                         })}
                       </div>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -284,6 +306,122 @@ const WebDashboard: React.FC<WebDashboardProps> = ({ workouts, completedDates })
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Histórico detalhado do exercício ── */}
+      {selectedExercise && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/80"
+          onClick={() => setSelectedExercise(null)}
+        >
+          <div
+            className="bg-gray-900 border-t border-gray-700 rounded-t-3xl w-full max-w-md p-6 pb-10 max-h-[80vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex justify-between items-start mb-5">
+              <div>
+                <h3 className="text-white font-bold text-lg leading-tight">{selectedExercise.name}</h3>
+                <p className="text-gray-500 text-xs mt-0.5">{selectedExercise.sessions} {selectedExercise.sessions === 1 ? 'sessão registrada' : 'sessões registradas'}</p>
+              </div>
+              <button
+                onClick={() => setSelectedExercise(null)}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white text-2xl rounded-xl hover:bg-gray-800 transition-colors flex-shrink-0"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Delta summary */}
+            {selectedExercise.sessions >= 2 && (
+              <div className="flex gap-3 mb-5">
+                <div className="flex-1 bg-gray-800/60 border border-gray-700/50 rounded-xl p-3 text-center">
+                  <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Inicial</p>
+                  <p className="text-white font-bold">{selectedExercise.startWeight} kg</p>
+                </div>
+                <div className="flex-1 bg-indigo-900/30 border border-indigo-700/30 rounded-xl p-3 text-center">
+                  <p className="text-[10px] text-indigo-400 uppercase font-bold mb-1">Atual</p>
+                  <p className="text-indigo-300 font-bold">{selectedExercise.currentWeight} kg</p>
+                </div>
+                <div className={`flex-1 rounded-xl p-3 text-center border ${
+                  selectedExercise.delta > 0
+                    ? 'bg-green-900/20 border-green-700/30'
+                    : selectedExercise.delta < 0
+                    ? 'bg-red-900/20 border-red-700/30'
+                    : 'bg-gray-800/60 border-gray-700/50'
+                }`}>
+                  <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Evolução</p>
+                  <p className={`font-bold ${
+                    selectedExercise.delta > 0 ? 'text-green-400'
+                    : selectedExercise.delta < 0 ? 'text-red-400'
+                    : 'text-gray-400'
+                  }`}>
+                    {selectedExercise.delta > 0 ? '+' : ''}{selectedExercise.delta.toFixed(1)} kg
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Bar chart — full width with labels */}
+            {selectedExercise.pairs.length >= 2 && (() => {
+              const maxW = Math.max(...selectedExercise.pairs.map(p => p.weight), 1);
+              return (
+                <div className="bg-gray-800/40 border border-gray-700/30 rounded-xl p-4 mb-5">
+                  <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-3">Evolução de carga</p>
+                  <div className="flex items-end gap-1.5" style={{ height: '100px' }}>
+                    {selectedExercise.pairs.map((p, i) => {
+                      const heightPct = Math.max((p.weight / maxW) * 100, 8);
+                      const isLatest = i === selectedExercise.pairs.length - 1;
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1 min-w-0">
+                          <span className={`text-[9px] font-bold truncate w-full text-center ${isLatest ? 'text-indigo-300' : 'text-gray-500'}`}>
+                            {p.weight}
+                          </span>
+                          <div className="w-full flex items-end justify-center" style={{ height: '72px' }}>
+                            <div
+                              className={`w-full rounded-t-md transition-all ${isLatest ? 'bg-indigo-500' : 'bg-indigo-800/60'}`}
+                              style={{ height: `${heightPct}%` }}
+                            />
+                          </div>
+                          <span className="text-[8px] text-gray-600 text-center leading-tight w-full truncate">
+                            {formatShortDate(p.date)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[9px] text-gray-600 text-right mt-1">kg</p>
+                </div>
+              );
+            })()}
+
+            {/* History table */}
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-2">Histórico completo</p>
+              <div className="space-y-1.5">
+                {[...selectedExercise.pairs].reverse().map((p, i) => (
+                  <div
+                    key={i}
+                    className={`flex justify-between items-center px-3 py-2.5 rounded-xl ${
+                      i === 0
+                        ? 'bg-indigo-900/30 border border-indigo-700/30'
+                        : 'bg-gray-800/50 border border-gray-700/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {i === 0 && <span className="text-[9px] font-black text-indigo-400 bg-indigo-900/50 px-1.5 py-0.5 rounded">ÚLTIMO</span>}
+                      <span className="text-gray-400 text-sm">{formatFullDate(p.date)}</span>
+                    </div>
+                    <span className={`font-bold text-sm ${i === 0 ? 'text-indigo-300' : 'text-white'}`}>
+                      {p.weight} kg
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -9,6 +9,7 @@ import { Workout, Suggestion, UserProfile } from '../types';
 import { getWorkoutFromPDF } from '../services/geminiService';
 import { supabase } from '../supaBaseClient';
 import { Session } from '@supabase/supabase-js';
+import { useWorkoutReminder } from '../hooks/useWorkoutReminder';
 import {
   DumbbellIcon,
   ClockIcon,
@@ -52,6 +53,9 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
 
   // Import error banner
   const [importError, setImportError] = useState<string | null>(null);
+
+  // Workout reminders
+  const workoutReminder = useWorkoutReminder(completedDates);
 
   // Estado de análise da IA (persiste quando usuário muda de aba)
   const [workoutAnalyzing, setWorkoutAnalyzing] = useState(false);
@@ -513,6 +517,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                     const { error } = await supabase.auth.signOut();
                     if (error) throw error;
                 }}
+                notifications={workoutReminder}
             />
         )}
 

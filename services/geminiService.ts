@@ -63,18 +63,20 @@ ${exerciseDetails}
 REGRAS DE PROGRESSÃO:
 1. Analise a TENDÊNCIA do histórico: o atleta está progredindo, estagnado ou regredindo?
 2. Ajuste de carga baseado em performance:
-   - Todas as séries completas + RPE ≤ 7 → AUMENTE a carga
-   - Todas as séries completas + RPE 8-9 → MANTENHA (consolide a técnica)
-   - Todas as séries completas + sem RPE → aumente moderadamente
-   - 1 série perdida → MANTENHA a carga
-   - 2+ séries perdidas ou RPE 10 → DIMINUA a carga em 5-10%
+   - Todas as séries completas + RPE ≤ 7 → AUMENTE a carga (recommendation_type: "increase")
+   - Todas as séries completas + RPE 8-9 → MANTENHA (recommendation_type: "maintain")
+   - Todas as séries completas + sem RPE → aumente moderadamente (recommendation_type: "increase")
+   - 1 série perdida → MANTENHA a carga (recommendation_type: "maintain")
+   - 2+ séries perdidas ou RPE 10 → DIMINUA a carga em 5-10% (recommendation_type: "decrease")
 3. Incrementos recomendados:
    - Compostos (supino, agachamento, terra, remada, desenvolvimento): 2.5-5kg
    - Isolados (curl, extensão, elevação lateral, voador): 1-2.5kg
    - Iniciantes: podem progredir mais rápido (5-10kg em compostos)
    - Avançados: progressão mais lenta e calculada
-4. Se o atleta ESTAGNA por 3+ sessões no mesmo peso → sugira técnicas de plateau (drop sets, aumento de reps antes de aumentar carga)
-5. A mensagem deve ser em português (pt-BR), motivacional, específica para o exercício e o contexto do atleta.
+4. Se o atleta ESTAGNA por 3+ sessões no mesmo peso → recommendation_type: "plateau". Preencha technique com uma técnica específica: "Drop Set", "Rest-Pause", "Myo-Reps" ou "Pausa-Ativação".
+5. Se o atleta acumular RPE alto (≥ 8) por 3+ sessões consecutivas → recommendation_type: "deload". Reduza a carga em 20-30% para recuperação.
+6. periodization_note: inclua quando houver alerta importante (ex: "Aumente reps antes de aumentar carga", "Progresso excelente — mantenha o ritmo", "Sinal de fadiga acumulada"). Deixe vazio se não houver nada relevante.
+7. A mensagem deve ser em português (pt-BR), motivacional, específica para o exercício e o contexto do atleta.
 
 Responda APENAS no formato JSON especificado.`;
 };
@@ -89,9 +91,12 @@ const suggestionResponseSchema = {
       exerciseId: { type: Type.NUMBER, description: 'ID do exercício.' },
       exerciseName: { type: Type.STRING, description: 'Nome do exercício.' },
       suggestedWeight: { type: Type.NUMBER, description: 'Carga sugerida em kg para a próxima sessão.' },
-      message: { type: Type.STRING, description: 'Mensagem motivacional em português (pt-BR) sobre este exercício.' },
+      message: { type: Type.STRING, description: 'Mensagem motivacional em português (pt-BR), específica para o exercício e contexto do atleta.' },
+      recommendation_type: { type: Type.STRING, description: 'Tipo de recomendação: "increase" (aumentar carga), "maintain" (manter carga), "decrease" (reduzir carga), "deload" (deload recomendado), "plateau" (estagnação — usar technique).' },
+      technique: { type: Type.STRING, description: 'Técnica especial se recommendation_type for "plateau" (ex: "Drop Set", "Rest-Pause", "Myo-Reps", "Pausa-Ativação"). String vazia se não aplicável.' },
+      periodization_note: { type: Type.STRING, description: 'Nota de periodização se relevante (ex: "Aumente reps antes de aumentar carga", "Considere 1 semana de deload"). String vazia se não aplicável.' },
     },
-    required: ["exerciseId", "exerciseName", "suggestedWeight", "message"],
+    required: ["exerciseId", "exerciseName", "suggestedWeight", "message", "recommendation_type", "technique", "periodization_note"],
   },
 };
 
@@ -144,7 +149,15 @@ export const getAIWorkoutSuggestions = async (
     return workout.exercises.map(exercise => {
       const sug = suggestions.find(s => s.exerciseId === exercise.id);
       if (sug && typeof sug.suggestedWeight === 'number' && sug.suggestedWeight > 0) {
-        return { ...sug, exerciseId: exercise.id, exerciseName: exercise.name, currentWeight: exercise.currentWeight };
+        return {
+          ...sug,
+          exerciseId: exercise.id,
+          exerciseName: exercise.name,
+          currentWeight: exercise.currentWeight,
+          recommendation_type: sug.recommendation_type || 'maintain',
+          technique: sug.technique || null,
+          periodization_note: sug.periodization_note || null,
+        };
       }
       return {
         exerciseId: exercise.id,
@@ -152,6 +165,9 @@ export const getAIWorkoutSuggestions = async (
         suggestedWeight: exercise.currentWeight,
         currentWeight: exercise.currentWeight,
         message: "Mantenha a carga atual e foque na execução perfeita.",
+        recommendation_type: 'maintain' as const,
+        technique: null,
+        periodization_note: null,
       };
     });
 
