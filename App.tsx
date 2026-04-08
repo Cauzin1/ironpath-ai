@@ -46,7 +46,7 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (loading || role === undefined) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent" />
@@ -55,6 +55,14 @@ function App() {
   }
 
   if (!session) return <Login />;
+
+  if (role === undefined) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent" />
+      </div>
+    );
+  }
   if (role === 'professor') return <TrainerApp session={session} />;
 
   // role === 'aluno' ou null (novo usuário → MainApp exibe Onboarding)
