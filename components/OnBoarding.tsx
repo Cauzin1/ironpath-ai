@@ -13,13 +13,13 @@ type Role = 'aluno' | 'professor';
 
 // ─── Step 1: Seleção de papel ─────────────────────────────────────────────────
 const RoleSelection: React.FC<{ onSelect: (r: Role) => void; onSignOut?: () => void }> = ({ onSelect, onSignOut }) => (
-  <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+  <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
     <div className="w-full max-w-md animate-fade-in">
       <div className="text-center mb-10">
         <div className="bg-indigo-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
           <DumbbellIcon className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-3xl font-bold text-white">IronPath AI</h1>
+        <h1 className="text-3xl font-bold text-white">GoliasFit</h1>
         <p className="text-gray-400 mt-2">Como você vai usar o app?</p>
       </div>
 
@@ -117,7 +117,7 @@ const StudentForm: React.FC<{ userId: string; onComplete: () => void; onBack: ()
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="flex items-center gap-3 mb-6">
           <button
@@ -236,7 +236,7 @@ const ProfessorForm: React.FC<{ userId: string; onComplete: () => void; onBack: 
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="flex items-center gap-3 mb-6">
           <button

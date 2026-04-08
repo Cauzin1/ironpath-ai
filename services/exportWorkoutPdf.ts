@@ -131,7 +131,7 @@ export function exportWorkoutPdf(
     doc.setFontSize(7);
     doc.setTextColor(156, 163, 175);
     doc.text(
-      `IronPath AI  ·  Página ${p} de ${totalPages}`,
+      `GoliasFit  ·  Página ${p} de ${totalPages}`,
       pageW / 2,
       doc.internal.pageSize.getHeight() - 8,
       { align: 'center' },

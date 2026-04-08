@@ -369,10 +369,10 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
 
   // --- RENDERIZAÇÃO ---
 
-  if (checkingProfile) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Carregando...</div>;
+  if (checkingProfile) return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">Carregando...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-900 pb-20 pb-safe relative">
+    <div className="min-h-screen bg-gray-950 pb-20 pb-safe relative">
       {/* Loading Overlay */}
       {importing && (
           <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center text-white p-6 text-center">
@@ -427,7 +427,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
         <div className={activeTab === 'workout' ? '' : 'hidden'}>
             <>
                 {/* Header fixo: seletor de dias + timer */}
-                <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur border-b border-gray-800 shadow-lg">
+                <div className="sticky top-0 z-40 bg-gray-950/95 backdrop-blur border-b border-gray-800 shadow-lg">
                     {workouts.length > 0 ? (() => {
                         const safeIdx = Math.min(currentIdx, workouts.length - 1);
                         const doneCount = workouts[safeIdx].exercises.filter(e => e.isFinished).length;
@@ -601,7 +601,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
       </div>
 
       {/* MENU INFERIOR (NAVEGAÇÃO) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t border-gray-800 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.6)] pb-safe">
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-950/95 backdrop-blur border-t border-gray-800 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.6)] pb-safe">
         <div className="h-16 flex justify-around items-center px-1">
           {(
             [

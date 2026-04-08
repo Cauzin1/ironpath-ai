@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-const STORAGE_KEY = 'ironpath_reminder';
+const STORAGE_KEY = 'goliasfit_reminder';
 
 export interface ReminderConfig {
   enabled: boolean;
@@ -44,7 +44,7 @@ export function useWorkoutReminder(completedDates: string[]) {
     if (trainedToday) return;
 
     // Avoid showing duplicate notifications on the same day
-    const shownKey = `ironpath_notif_${today}`;
+    const shownKey = `goliasfit_notif_${today}`;
     if (localStorage.getItem(shownKey)) return;
 
     const [h, m] = config.time.split(':').map(Number);
@@ -56,12 +56,12 @@ export function useWorkoutReminder(completedDates: string[]) {
 
     const showNotification = () => {
       try {
-        new Notification('IronPath AI 💪', {
+        new Notification('GoliasFit 💪', {
           body: 'Você ainda não treinou hoje. Vamos lá!',
           icon: '/icons/icon-192.png',
           tag: 'workout-reminder',
         });
-        localStorage.setItem(`ironpath_notif_${getLocalDate()}`, '1');
+        localStorage.setItem(`goliasfit_notif_${getLocalDate()}`, '1');
       } catch (err) {
         console.warn('Notificação não suportada:', err);
       }

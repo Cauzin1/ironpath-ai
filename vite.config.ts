@@ -21,8 +21,8 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
         manifest: {
-          name: 'IronPath AI',
-          short_name: 'IronPath',
+          name: 'GoliasFit',
+          short_name: 'GoliasFit',
           description: 'Treinos com progressão inteligente por IA',
           theme_color: '#111827',
           background_color: '#111827',

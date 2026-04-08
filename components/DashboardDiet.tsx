@@ -14,10 +14,10 @@ export default function DashboardDiet() {
     d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
   return (
-    <div className="min-h-screen bg-gray-900 pb-24">
+    <div className="min-h-screen bg-gray-950 pb-24">
 
       {/* Header */}
-      <div className="bg-gray-900/95 backdrop-blur border-b border-gray-800 px-4 py-4 sticky top-0 z-30">
+      <div className="bg-gray-950/95 backdrop-blur border-b border-gray-800 px-4 py-4 sticky top-0 z-30">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-xl font-bold text-white">Minha Dieta</h1>
