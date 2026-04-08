@@ -43,11 +43,12 @@ const AuthenticatedApp: React.FC<{ session: Session }> = ({ session }) => {
 
   const fetchRole = useCallback(async () => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('role')
         .eq('user_id', session.user.id)
-        .single();
+        .maybeSingle();
+      if (error) throw error;
       setRole((data?.role as 'aluno' | 'professor') ?? null);
     } catch {
       setRole(null);
@@ -69,7 +70,7 @@ const AuthenticatedApp: React.FC<{ session: Session }> = ({ session }) => {
   if (role === 'professor') return <TrainerApp session={session} />;
 
   // role === 'aluno' ou null → MainApp mostra Onboarding se sem perfil
-  return <MainApp session={session} onRoleChange={fetchRole} />;
+  return <MainApp session={session} />;
 };
 
 export default App;

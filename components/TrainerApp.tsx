@@ -22,28 +22,41 @@ export const TrainerApp: React.FC<{ session: Session }> = ({ session }) => {
   // ── Load data ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', trainerId)
-        .single();
-      if (data) {
-        const name = session.user.user_metadata?.full_name as string | undefined;
-        setProfile({ ...data, name });
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', trainerId)
+          .single();
+        if (data) {
+          const name = session.user.user_metadata?.full_name as string | undefined;
+          setProfile({ ...data, name });
+        }
+      } catch (e) {
+        console.error('Erro ao carregar perfil do professor:', e);
+      } finally {
+        setCheckingProfile(false);
       }
-      setCheckingProfile(false);
     };
     load();
   }, [trainerId]);
 
   const refreshStudents = async () => {
-    const data = await getMyStudents(trainerId);
-    setStudents(data);
+    try {
+      const data = await getMyStudents(trainerId);
+      setStudents(data);
+    } catch (e) {
+      console.error('Erro ao carregar alunos:', e);
+    }
   };
 
   const refreshWorkouts = async () => {
-    const data = await getTrainerWorkouts(trainerId);
-    setTrainerWorkouts(data);
+    try {
+      const data = await getTrainerWorkouts(trainerId);
+      setTrainerWorkouts(data);
+    } catch (e) {
+      console.error('Erro ao carregar treinos:', e);
+    }
   };
 
   useEffect(() => {

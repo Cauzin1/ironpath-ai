@@ -28,11 +28,12 @@ export const generateInviteCode = async (
 };
 
 export const getMyInviteCode = async (trainerId: string): Promise<TrainerInvite | null> => {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('trainer_invites')
     .select('*')
     .eq('trainer_id', trainerId)
-    .single();
+    .maybeSingle();
+  if (error) throw error;
   return data ?? null;
 };
 
@@ -85,11 +86,12 @@ export const joinByInviteCode = async (
 };
 
 export const getMyTrainer = async (studentId: string): Promise<TrainerStudent | null> => {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('trainer_students')
     .select('*')
     .eq('student_id', studentId)
-    .single();
+    .maybeSingle();
+  if (error) throw error;
   return data ?? null;
 };
 

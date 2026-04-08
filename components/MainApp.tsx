@@ -42,7 +42,7 @@ const getWorkoutTabSub = (name: string): string => {
   return muscles.length > 12 ? muscles.substring(0, 11) + '…' : muscles;
 };
 
-export const MainApp: React.FC<{ session: Session; onRoleChange?: () => void }> = ({ session }) => {
+export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   // Dados
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -95,30 +95,36 @@ export const MainApp: React.FC<{ session: Session; onRoleChange?: () => void }> 
   // Carregar Dados
   useEffect(() => {
     const loadData = async () => {
-      const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', session.user.id).single();
-      if (profile) {
-        const name = session.user.user_metadata?.full_name as string | undefined;
-        setUserProfile({ ...profile, name });
-      }
+      try {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', session.user.id).single();
+        if (profile) {
+          const name = session.user.user_metadata?.full_name as string | undefined;
+          setUserProfile({ ...profile, name });
+        }
 
-      const { data: progress } = await supabase.from('user_progress').select('*').eq('user_id', session.user.id).single();
-      if (progress) {
-        const loadedWorkouts = (progress.workouts || []).map((w: Workout) => ({
-           ...w,
-           exercises: w.exercises.map(e => ({ ...e, isFinished: e.isFinished || false }))
-        }));
-        setWorkouts(loadedWorkouts);
-        setCompletedDates(progress.completed_dates || []);
-        setCurrentIdx(progress.current_workout_index || 0);
-      }
-      const [assigned, trainer] = await Promise.all([
-        getAssignedWorkoutsForStudent(session.user.id),
-        getMyTrainer(session.user.id),
-      ]);
-      setAssignedWorkouts(assigned);
-      setTrainerLink(trainer);
+        const { data: progress } = await supabase.from('user_progress').select('*').eq('user_id', session.user.id).single();
+        if (progress) {
+          const loadedWorkouts = (progress.workouts || []).map((w: Workout) => ({
+             ...w,
+             exercises: w.exercises.map(e => ({ ...e, isFinished: e.isFinished || false }))
+          }));
+          setWorkouts(loadedWorkouts);
+          setCompletedDates(progress.completed_dates || []);
+          setCurrentIdx(progress.current_workout_index || 0);
+        }
 
-      setCheckingProfile(false);
+        // Tabelas do sistema professor/aluno podem não existir — nunca bloquear o carregamento
+        const [assigned, trainer] = await Promise.all([
+          getAssignedWorkoutsForStudent(session.user.id).catch(() => [] as AssignedWorkout[]),
+          getMyTrainer(session.user.id).catch(() => null),
+        ]);
+        setAssignedWorkouts(assigned);
+        setTrainerLink(trainer);
+      } catch (e) {
+        console.error('Erro ao carregar dados:', e);
+      } finally {
+        setCheckingProfile(false);
+      }
     };
     loadData();
   }, [session.user.id]);
