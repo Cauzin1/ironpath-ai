@@ -5,7 +5,7 @@ import { supabase } from '../../supaBaseClient';
 
 interface TrainerProfileProps {
   session: Session;
-  profile: UserProfile;
+  profile: UserProfile | null;
   studentCount: number;
   workoutCount: number;
 }
@@ -27,7 +27,7 @@ export const TrainerProfile: React.FC<TrainerProfileProps> = ({
     }
   };
 
-  const name = profile.name ?? session.user.email ?? 'Professor';
+  const name = profile?.name ?? session.user.user_metadata?.full_name ?? session.user.email ?? 'Professor';
   const initials = name.charAt(0).toUpperCase();
 
   return (

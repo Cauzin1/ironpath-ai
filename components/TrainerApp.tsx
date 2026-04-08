@@ -22,11 +22,12 @@ export const TrainerApp: React.FC<{ session: Session }> = ({ session }) => {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('user_id', trainerId)
-          .single();
+          .maybeSingle();
+        if (error) throw error;
         if (data) {
           const name = session.user.user_metadata?.full_name as string | undefined;
           setProfile({ ...data, name });
@@ -59,7 +60,7 @@ export const TrainerApp: React.FC<{ session: Session }> = ({ session }) => {
   };
 
   useEffect(() => {
-    if (!checkingProfile && profile) {
+    if (!checkingProfile) {
       refreshStudents();
       refreshWorkouts();
     }
