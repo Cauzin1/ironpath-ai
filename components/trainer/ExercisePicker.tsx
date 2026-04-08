@@ -19,14 +19,15 @@ export const ExercisePicker: React.FC<ExercisePickerProps> = ({ onSelect, onClos
   const query = search.trim().toLowerCase();
 
   // Resultados filtrados
+  const activeGroupData = activeGroup ? EXERCISE_GROUPS.find(g => g.id === activeGroup) : null;
   const results = query
     ? ALL_EXERCISES.filter(e => e.name.toLowerCase().includes(query))
-    : activeGroup
-    ? EXERCISE_GROUPS.find(g => g.id === activeGroup)?.exercises.map(name => ({
+    : activeGroupData
+    ? activeGroupData.exercises.map(name => ({
         name,
-        group: EXERCISE_GROUPS.find(g => g.id === activeGroup)!.label,
-        groupEmoji: EXERCISE_GROUPS.find(g => g.id === activeGroup)!.emoji,
-      })) ?? []
+        group: activeGroupData.label,
+        groupEmoji: activeGroupData.emoji,
+      }))
     : [];
 
   const showResults = query.length > 0 || activeGroup !== null;

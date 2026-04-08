@@ -92,7 +92,7 @@ export const TrainerApp: React.FC<{ session: Session }> = ({ session }) => {
       {/* Content */}
       <div className="max-w-md mx-auto pt-14 pb-20">
         {activeTab === 'students' && (
-          <TrainerStudents trainerId={trainerId} trainerName={trainerName} students={students} trainerWorkouts={trainerWorkouts} onStudentsChange={refreshStudents} />
+          <TrainerStudents trainerId={trainerId} trainerName={trainerName} students={students} onStudentsChange={refreshStudents} />
         )}
         {activeTab === 'workouts' && (
           <TrainerWorkouts trainerId={trainerId} trainerName={trainerName} workouts={trainerWorkouts} students={students} onWorkoutsChange={refreshWorkouts} />

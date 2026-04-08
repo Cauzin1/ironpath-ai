@@ -288,13 +288,14 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   const handleDeleteWorkout = useCallback((index: number) => {
     setWorkouts(prev => {
       const copy = prev.filter((_, i) => i !== index);
+      setCurrentIdx(cur => {
+        if (copy.length === 0) return 0;
+        if (index < cur) return cur - 1;
+        return Math.min(cur, copy.length - 1);
+      });
       return copy;
     });
-    setCurrentIdx(prev => {
-      if (index < prev) return prev - 1;
-      return Math.max(0, Math.min(prev, workouts.length - 2));
-    });
-  }, [workouts.length]);
+  }, []);
 
   const applySuggestions = useCallback((sugs: Suggestion[]) => {
       setWorkouts(prev => {

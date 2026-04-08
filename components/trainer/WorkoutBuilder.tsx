@@ -99,7 +99,7 @@ export const WorkoutBuilder: React.FC<WorkoutBuilderProps> = ({
       if (filtered.length === 0) return d;
       return filtered;
     });
-    setActiveDayIdx(i => Math.min(i, days.length - 2));
+    setActiveDayIdx(i => Math.max(0, Math.min(i, days.length - 2)));
   };
 
   const updateDay = (dayTempId: number, patch: Partial<DayDraft>) => {

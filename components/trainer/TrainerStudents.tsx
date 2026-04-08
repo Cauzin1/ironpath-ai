@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrainerStudent, TrainerInvite, TrainerWorkout } from '../../types';
+import { TrainerStudent, TrainerInvite } from '../../types';
 import { UsersIcon, CopyIcon, TrashIcon } from '../icons';
 import { generateInviteCode, getMyInviteCode, removeStudent } from '../../services/trainerService';
 
@@ -7,7 +7,6 @@ interface TrainerStudentsProps {
   trainerId: string;
   trainerName: string;
   students: TrainerStudent[];
-  trainerWorkouts: TrainerWorkout[];
   onStudentsChange: () => void;
 }
 
