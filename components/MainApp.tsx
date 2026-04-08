@@ -119,6 +119,22 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
         ]);
         setAssignedWorkouts(assigned);
         setTrainerLink(trainer);
+
+        // Auto-reparo: corrige student_name = 'Aluno' ou vazio que pode ter sido gravado errado
+        if (trainer && (!trainer.student_name || trainer.student_name === 'Aluno')) {
+          const { data: { user: freshUser } } = await supabase.auth.getUser();
+          const correctName =
+            freshUser?.user_metadata?.full_name ??
+            session.user.user_metadata?.full_name ??
+            session.user.email?.split('@')[0];
+          if (correctName) {
+            await supabase
+              .from('trainer_students')
+              .update({ student_name: correctName })
+              .eq('id', trainer.id)
+              .then(() => null, () => null);
+          }
+        }
       } catch (e) {
         console.error('Erro ao carregar dados:', e);
       } finally {
@@ -321,7 +337,14 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   };
 
   const handleJoinTrainer = async (code: string) => {
-    const studentName = userProfile?.name ?? session.user.user_metadata?.full_name ?? 'Aluno';
+    // Busca dados frescos do usuário — o metadata pode estar desatualizado no JWT da sessão
+    const { data: { user: freshUser } } = await supabase.auth.getUser();
+    const studentName =
+      freshUser?.user_metadata?.full_name ??
+      userProfile?.name ??
+      session.user.user_metadata?.full_name ??
+      session.user.email?.split('@')[0] ??
+      'Aluno';
     await joinByInviteCode(code, session.user.id, studentName);
     const trainer = await getMyTrainer(session.user.id);
     setTrainerLink(trainer);
