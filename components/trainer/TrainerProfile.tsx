@@ -20,8 +20,13 @@ export const TrainerProfile: React.FC<TrainerProfileProps> = ({
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    await supabase.auth.signOut();
-    window.location.href = '/';
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      // signOut falhou — força reload para garantir limpeza local
+      window.location.href = '/';
+    }
+    // Em caso de sucesso o onAuthStateChange em App.tsx recebe SIGNED_OUT
+    // e redireciona para Login sem precisar de reload
   };
 
   const name = profile?.name ?? session.user.user_metadata?.full_name ?? session.user.email ?? 'Professor';
