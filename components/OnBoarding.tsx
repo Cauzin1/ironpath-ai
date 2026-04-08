@@ -6,12 +6,13 @@ interface OnboardingProps {
   userId: string;
   onComplete: () => void;
   initialRole?: string;
+  onSignOut?: () => void;
 }
 
 type Role = 'aluno' | 'professor';
 
 // ─── Step 1: Seleção de papel ─────────────────────────────────────────────────
-const RoleSelection: React.FC<{ onSelect: (r: Role) => void }> = ({ onSelect }) => (
+const RoleSelection: React.FC<{ onSelect: (r: Role) => void; onSignOut?: () => void }> = ({ onSelect, onSignOut }) => (
   <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
     <div className="w-full max-w-md animate-fade-in">
       <div className="text-center mb-10">
@@ -53,6 +54,18 @@ const RoleSelection: React.FC<{ onSelect: (r: Role) => void }> = ({ onSelect }) 
           </div>
         </button>
       </div>
+
+      {onSignOut && (
+        <p className="text-center mt-8 text-gray-600 text-sm">
+          Já tem uma conta?{' '}
+          <button
+            onClick={onSignOut}
+            className="text-indigo-400 font-semibold hover:underline bg-transparent border-none cursor-pointer"
+          >
+            Fazer login
+          </button>
+        </p>
+      )}
     </div>
   </div>
 );
@@ -270,7 +283,7 @@ const ProfessorForm: React.FC<{ userId: string; onComplete: () => void; onBack: 
 };
 
 // ─── Componente principal ─────────────────────────────────────────────────────
-export const Onboarding: React.FC<OnboardingProps> = ({ userId, onComplete, initialRole }) => {
+export const Onboarding: React.FC<OnboardingProps> = ({ userId, onComplete, initialRole, onSignOut }) => {
   const preselected = initialRole === 'professor' || initialRole === 'aluno' ? initialRole as Role : null;
   const [step, setStep] = useState<1 | 2>(preselected ? 2 : 1);
   const [selectedRole, setSelectedRole] = useState<Role | null>(preselected);
@@ -287,6 +300,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ userId, onComplete, init
           setSelectedRole(role);
           setStep(2);
         }}
+        onSignOut={onSignOut}
       />
     );
   }

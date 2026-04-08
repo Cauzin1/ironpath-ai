@@ -53,14 +53,18 @@ const AuthenticatedApp: React.FC<{ session: Session }> = ({ session }) => {
         .eq('user_id', session.user.id)
         .maybeSingle();
       if (error) throw error;
+      // data === null → usuário sem perfil → Onboarding
+      // data.role === 'aluno'/'professor' → rota correta
       setRole((data?.role as 'aluno' | 'professor') ?? null);
     } catch {
-      // Fallback: usa o papel que o usuário selecionou na tela de login
+      // Erro real (RLS, rede, tabela inexistente) — tenta usar metadata como fallback
       const metaRole = session.user.user_metadata?.selectedRole;
       if (metaRole === 'professor' || metaRole === 'aluno') {
         setRole(metaRole);
       } else {
-        setRole(null);
+        // Não sabe o papel e não conseguiu buscar → desloga para evitar
+        // loop onde usuário fica preso no Onboarding em vez de ver o Login
+        await supabase.auth.signOut();
       }
     }
   }, [session.user.id, session.user.user_metadata?.selectedRole]);
@@ -77,6 +81,7 @@ const AuthenticatedApp: React.FC<{ session: Session }> = ({ session }) => {
         userId={session.user.id}
         initialRole={session.user.user_metadata?.selectedRole}
         onComplete={fetchRole}
+        onSignOut={() => supabase.auth.signOut()}
       />
     );
   }
