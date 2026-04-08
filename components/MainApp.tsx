@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { WorkoutPlanner } from './WorkoutPlanner';
-import { Onboarding } from './OnBoarding';
 import { HomeTab } from './HomeTab';
 import { ProfileTab } from './ProfileTab';
 import { WorkoutsTab } from './WorkoutsTab';
@@ -348,7 +347,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   // --- RENDERIZAÇÃO ---
 
   if (checkingProfile) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Carregando...</div>;
-  if (!userProfile) return <Onboarding userId={session.user.id} initialRole={session.user.user_metadata?.selectedRole} onComplete={() => window.location.reload()} />;
 
   return (
     <div className="min-h-screen bg-gray-900 pb-20 pb-safe relative">

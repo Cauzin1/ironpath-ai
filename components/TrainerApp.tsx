@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { UserProfile, TrainerStudent, TrainerWorkout } from '../types';
 import { supabase } from '../supaBaseClient';
-import { Onboarding } from './OnBoarding';
 import { TrainerStudents } from './trainer/TrainerStudents';
 import { TrainerWorkouts } from './trainer/TrainerWorkouts';
 import { TrainerProfile } from './trainer/TrainerProfile';
@@ -73,10 +72,6 @@ export const TrainerApp: React.FC<{ session: Session }> = ({ session }) => {
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent" />
       </div>
     );
-  }
-
-  if (!profile) {
-    return <Onboarding userId={trainerId} onComplete={() => window.location.reload()} />;
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
