@@ -1,6 +1,17 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Workout } from '../types';
 import { calculateStreak, getWeeklyCount, getMaxStreak } from '../utils/gamification';
+
+const WEEKLY_GOAL_KEY = 'goliasfit_weekly_goal';
+
+function readWeeklyGoal(): number {
+  try {
+    const v = parseInt(localStorage.getItem(WEEKLY_GOAL_KEY) ?? '', 10);
+    return isNaN(v) ? 3 : Math.min(Math.max(v, 1), 7);
+  } catch {
+    return 3;
+  }
+}
 
 interface WebDashboardProps {
   workouts: Workout[];
@@ -35,6 +46,15 @@ function formatFullDate(iso: string): string {
 const WebDashboard: React.FC<WebDashboardProps> = ({ workouts, completedDates }) => {
   const dateSet = useMemo(() => new Set(completedDates), [completedDates]);
   const [selectedExercise, setSelectedExercise] = useState<ExerciseStat | null>(null);
+  const [weeklyGoal, setWeeklyGoalState] = useState<number>(readWeeklyGoal);
+
+  const setWeeklyGoal = useCallback((delta: number) => {
+    setWeeklyGoalState(prev => {
+      const next = Math.min(Math.max(prev + delta, 1), 7);
+      try { localStorage.setItem(WEEKLY_GOAL_KEY, String(next)); } catch { /* private mode */ }
+      return next;
+    });
+  }, []);
 
   // ── Quick stats ────────────────────────────────────────────────────────
   const totalWorkouts = completedDates.length;
@@ -144,13 +164,51 @@ const WebDashboard: React.FC<WebDashboardProps> = ({ workouts, completedDates })
           <p className="text-3xl font-black text-white">{streak}</p>
           <p className="text-orange-300 text-xs mt-1">🔥 Sequência atual</p>
         </div>
-        <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl p-4">
-          <p className="text-3xl font-black text-white">{weeklyCount}</p>
-          <p className="text-gray-400 text-xs mt-1">Treinos esta semana</p>
+        {/* Meta semanal configurável */}
+        <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl p-4 col-span-2">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-white font-black text-2xl leading-none">
+                {weeklyCount}
+                <span className="text-gray-500 text-base font-semibold"> / {weeklyGoal}</span>
+              </p>
+              <p className="text-gray-400 text-xs mt-1">Treinos esta semana</p>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setWeeklyGoal(-1)}
+                disabled={weeklyGoal <= 1}
+                className="w-7 h-7 rounded-lg bg-gray-700 text-gray-300 font-bold text-lg flex items-center justify-center hover:bg-gray-600 disabled:opacity-30 transition-colors"
+                aria-label="Diminuir meta"
+              >−</button>
+              <span className="text-gray-500 text-[10px] font-bold uppercase px-1">meta</span>
+              <button
+                onClick={() => setWeeklyGoal(+1)}
+                disabled={weeklyGoal >= 7}
+                className="w-7 h-7 rounded-lg bg-gray-700 text-gray-300 font-bold text-lg flex items-center justify-center hover:bg-gray-600 disabled:opacity-30 transition-colors"
+                aria-label="Aumentar meta"
+              >+</button>
+            </div>
+          </div>
+          {/* Barra de progresso */}
+          <div className="h-2 bg-gray-700/60 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                weeklyCount >= weeklyGoal ? 'bg-green-500' : 'bg-indigo-500'
+              }`}
+              style={{ width: `${Math.min((weeklyCount / weeklyGoal) * 100, 100)}%` }}
+            />
+          </div>
+          {weeklyCount >= weeklyGoal && (
+            <p className="text-green-400 text-[11px] font-bold mt-1.5">Meta atingida! 🎯</p>
+          )}
         </div>
-        <div className="bg-indigo-900/30 border border-indigo-700/30 rounded-2xl p-4">
-          <p className="text-3xl font-black text-white">{maxStreak}</p>
-          <p className="text-indigo-300 text-xs mt-1">⚡ Melhor sequência</p>
+        <div className="bg-indigo-900/30 border border-indigo-700/30 rounded-2xl p-4 col-span-2 flex items-center justify-between">
+          <div>
+            <p className="text-3xl font-black text-white">{maxStreak}</p>
+            <p className="text-indigo-300 text-xs mt-1">⚡ Melhor sequência</p>
+          </div>
+          <span className="text-4xl opacity-30">🏆</span>
         </div>
       </div>
 

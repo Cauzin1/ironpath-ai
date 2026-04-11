@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useReducer } from 'react';
 import { WorkoutPlanner } from './WorkoutPlanner';
 import { HomeTab } from './HomeTab';
 import { ProfileTab } from './ProfileTab';
@@ -26,6 +26,139 @@ import {
   UploadIcon,
 } from './icons';
 
+// ─── Workout Reducer ──────────────────────────────────────────────────────────
+
+type WorkoutState = {
+  workouts: Workout[];
+  currentIdx: number;
+};
+
+type WorkoutAction =
+  | { type: 'SET_WORKOUTS'; workouts: Workout[]; currentIdx?: number }
+  | { type: 'SET_IDX'; idx: number }
+  | { type: 'UPDATE_WEIGHT'; id: number; weight: number }
+  | { type: 'TOGGLE_SET'; id: number; setIndex: number }
+  | { type: 'FINISH_EXERCISE'; id: number }
+  | { type: 'UPDATE_RPE'; id: number; rpe: number }
+  | { type: 'APPLY_SUGGESTIONS'; suggestions: Suggestion[]; date: string }
+  | { type: 'COMPLETE_WORKOUT'; date: string }
+  | { type: 'DELETE_WORKOUT'; index: number };
+
+function workoutReducer(state: WorkoutState, action: WorkoutAction): WorkoutState {
+  const { workouts, currentIdx } = state;
+  const safeIdx = Math.min(currentIdx, Math.max(workouts.length - 1, 0));
+
+  switch (action.type) {
+    case 'SET_WORKOUTS':
+      return { workouts: action.workouts, currentIdx: action.currentIdx ?? 0 };
+
+    case 'SET_IDX':
+      return { ...state, currentIdx: Math.min(action.idx, Math.max(workouts.length - 1, 0)) };
+
+    case 'UPDATE_WEIGHT': {
+      if (workouts.length === 0) return state;
+      const copy = workouts.map((w, i) =>
+        i !== safeIdx ? w : {
+          ...w,
+          exercises: w.exercises.map(e =>
+            e.id === action.id ? { ...e, currentWeight: action.weight } : e
+          ),
+        }
+      );
+      return { ...state, workouts: copy };
+    }
+
+    case 'TOGGLE_SET': {
+      if (workouts.length === 0) return state;
+      const copy = workouts.map((w, i) =>
+        i !== safeIdx ? w : {
+          ...w,
+          exercises: w.exercises.map(e => {
+            if (e.id !== action.id) return e;
+            const completed = e.completedSets.includes(action.setIndex)
+              ? e.completedSets.filter(x => x !== action.setIndex)
+              : [...e.completedSets, action.setIndex].sort((a, b) => a - b);
+            return { ...e, completedSets: completed };
+          }),
+        }
+      );
+      return { ...state, workouts: copy };
+    }
+
+    case 'FINISH_EXERCISE': {
+      if (workouts.length === 0) return state;
+      const copy = workouts.map((w, i) =>
+        i !== safeIdx ? w : {
+          ...w,
+          exercises: w.exercises.map(e =>
+            e.id === action.id ? { ...e, isFinished: !e.isFinished } : e
+          ),
+        }
+      );
+      return { ...state, workouts: copy };
+    }
+
+    case 'UPDATE_RPE': {
+      if (workouts.length === 0) return state;
+      const copy = workouts.map((w, i) =>
+        i !== safeIdx ? w : {
+          ...w,
+          exercises: w.exercises.map(e =>
+            e.id === action.id ? { ...e, rpe: action.rpe } : e
+          ),
+        }
+      );
+      return { ...state, workouts: copy };
+    }
+
+    case 'APPLY_SUGGESTIONS': {
+      if (workouts.length === 0) return state;
+      const copy = workouts.map((w, i) =>
+        i !== safeIdx ? w : {
+          ...w,
+          exercises: w.exercises.map(e => {
+            const sug = action.suggestions.find(s => s.exerciseId === e.id);
+            return {
+              ...e,
+              currentWeight: sug ? sug.suggestedWeight : e.currentWeight,
+              completedSets: [],
+              isFinished: false,
+              rpe: undefined,
+              history: [
+                ...e.history,
+                { date: action.date, weight: e.currentWeight, reps: e.reps, rpe: e.rpe },
+              ],
+            };
+          }),
+        }
+      );
+      return { ...state, workouts: copy };
+    }
+
+    case 'COMPLETE_WORKOUT': {
+      if (workouts.length === 0) return state;
+      const copy = workouts.map((w, i) =>
+        i !== safeIdx ? w : { ...w, lastPerformedDate: action.date }
+      );
+      return { ...state, workouts: copy };
+    }
+
+    case 'DELETE_WORKOUT': {
+      const copy = workouts.filter((_, i) => i !== action.index);
+      let newIdx = currentIdx;
+      if (copy.length === 0) newIdx = 0;
+      else if (action.index < currentIdx) newIdx = currentIdx - 1;
+      else newIdx = Math.min(currentIdx, copy.length - 1);
+      return { workouts: copy, currentIdx: newIdx };
+    }
+
+    default:
+      return state;
+  }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 // Parte principal do nome (antes do " - " ou " – ")
 const getWorkoutTabMain = (name: string): string => {
   const dashIdx = name.search(/\s[-–]\s/);
@@ -41,12 +174,15 @@ const getWorkoutTabSub = (name: string): string => {
   return muscles.length > 12 ? muscles.substring(0, 11) + '…' : muscles;
 };
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
-  // Dados
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [currentIdx, setCurrentIdx] = useState(0);
+  // Workout state gerenciado pelo reducer (elimina stale closures)
+  const [{ workouts, currentIdx }, dispatch] = useReducer(workoutReducer, { workouts: [], currentIdx: 0 });
+
+  // Estado separado (não pertence ao reducer de workout)
   const [completedDates, setCompletedDates] = useState<string[]>([]);
-  
+
   // UI & Navegação
   const [activeTab, setActiveTab] = useState<'home' | 'workout' | 'plans' | 'profile' | 'dashboard'>('home');
   const [importing, setImporting] = useState(false);
@@ -107,9 +243,12 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
              ...w,
              exercises: w.exercises.map(e => ({ ...e, isFinished: e.isFinished || false }))
           }));
-          setWorkouts(loadedWorkouts);
+          dispatch({
+            type: 'SET_WORKOUTS',
+            workouts: loadedWorkouts,
+            currentIdx: progress.current_workout_index || 0,
+          });
           setCompletedDates(progress.completed_dates || []);
-          setCurrentIdx(progress.current_workout_index || 0);
         }
 
         // Tabelas do sistema professor/aluno podem não existir — nunca bloquear o carregamento
@@ -144,7 +283,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
     loadData();
   }, [session.user.id]);
 
-  // Salvar Dados
+  // Salvar Dados (debounced 2s)
   useEffect(() => {
     if (workouts.length === 0) return;
     const t = setTimeout(async () => {
@@ -157,9 +296,9 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
       });
     }, 2000);
     return () => clearTimeout(t);
-  }, [workouts, completedDates, currentIdx]);
+  }, [workouts, completedDates, currentIdx, session.user.id]);
 
-  // Handlers
+  // Handlers de importação
   const handleImport = async (file: File, mode: 'replace' | 'append' = 'replace') => {
     setImporting(true);
     setImportError(null);
@@ -175,7 +314,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
           let finalIdx: number;
 
           if (mode === 'append' && workouts.length > 0) {
-            // Re-atribui IDs para evitar conflitos
             const maxId = workouts.reduce(
               (max, w) => w.exercises.reduce((m, e) => Math.max(m, e.id), max), 0
             );
@@ -194,8 +332,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
             setActiveTab('plans');
           }
 
-          setWorkouts(finalWorkouts);
-          setCurrentIdx(finalIdx);
+          dispatch({ type: 'SET_WORKOUTS', workouts: finalWorkouts, currentIdx: finalIdx });
 
           await supabase.from('user_progress').upsert({
             user_id: session.user.id,
@@ -221,115 +358,40 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
     }
   };
 
-  // Funções de Treino
-  const updateWeight = useCallback((id: number, w: number) => {
-    setWorkouts(prev => {
-        const copy = [...prev];
-        const idx = Math.min(currentIdx, copy.length - 1);
-        copy[idx].exercises = copy[idx].exercises.map(e => e.id === id ? {...e, currentWeight: w} : e);
-        return copy;
-    });
-  }, [currentIdx]);
+  // Dispatch wrappers — stable references (dispatch nunca muda)
+  const updateWeight = useCallback((id: number, w: number) =>
+    dispatch({ type: 'UPDATE_WEIGHT', id, weight: w }), []);
 
-  const toggleSet = useCallback((id: number, s: number) => {
-    setWorkouts(prev => {
-        const copy = [...prev];
-        const idx = Math.min(currentIdx, copy.length - 1);
-        copy[idx].exercises = copy[idx].exercises.map(e => {
-            if (e.id === id) {
-                const completed = e.completedSets.includes(s)
-                    ? e.completedSets.filter(x => x !== s)
-                    : [...e.completedSets, s];
-                completed.sort((a,b) => a-b);
-                return {...e, completedSets: completed};
-            }
-            return e;
-        });
-        return copy;
-    });
-  }, [currentIdx]);
+  const toggleSet = useCallback((id: number, s: number) =>
+    dispatch({ type: 'TOGGLE_SET', id, setIndex: s }), []);
 
-  const handleFinishExercise = useCallback((id: number) => {
-    setWorkouts(prev => {
-        const copy = [...prev];
-        const idx = Math.min(currentIdx, copy.length - 1);
-        copy[idx].exercises = copy[idx].exercises.map(e => {
-            if (e.id === id) return { ...e, isFinished: !e.isFinished };
-            return e;
-        });
-        return copy;
-    });
-  }, [currentIdx]);
+  const handleFinishExercise = useCallback((id: number) =>
+    dispatch({ type: 'FINISH_EXERCISE', id }), []);
 
-  const updateRpe = useCallback((id: number, rpe: number) => {
-    setWorkouts(prev => {
-        const copy = [...prev];
-        const idx = Math.min(currentIdx, copy.length - 1);
-        copy[idx].exercises = copy[idx].exercises.map(e =>
-            e.id === id ? { ...e, rpe } : e
-        );
-        return copy;
-    });
-  }, [currentIdx]);
+  const updateRpe = useCallback((id: number, rpe: number) =>
+    dispatch({ type: 'UPDATE_RPE', id, rpe }), []);
+
+  const handleDeleteWorkout = useCallback((index: number) =>
+    dispatch({ type: 'DELETE_WORKOUT', index }), []);
 
   const handleWorkoutComplete = () => {
     setIsWorkoutRunning(false);
     const today = getLocalDateString();
     setCompletedDates(p => p.includes(today) ? p : [...p, today]);
-    // Registra qual treino foi feito hoje
-    setWorkouts(prev => {
-      const copy = [...prev];
-      const idx = Math.min(currentIdx, copy.length - 1);
-      copy[idx] = { ...copy[idx], lastPerformedDate: today };
-      return copy;
-    });
+    dispatch({ type: 'COMPLETE_WORKOUT', date: today });
   };
 
-  const handleDeleteWorkout = useCallback((index: number) => {
-    setWorkouts(prev => {
-      const copy = prev.filter((_, i) => i !== index);
-      setCurrentIdx(cur => {
-        if (copy.length === 0) return 0;
-        if (index < cur) return cur - 1;
-        return Math.min(cur, copy.length - 1);
-      });
-      return copy;
-    });
-  }, []);
-
   const applySuggestions = useCallback((sugs: Suggestion[]) => {
-      setWorkouts(prev => {
-          const copy = [...prev];
-          const idx = Math.min(currentIdx, copy.length - 1);
-          copy[idx].exercises = copy[idx].exercises.map(e => {
-              const sug = sugs.find(s => s.exerciseId === e.id);
-              return {
-                  ...e,
-                  currentWeight: sug ? sug.suggestedWeight : e.currentWeight,
-                  completedSets: [],
-                  isFinished: false,
-                  rpe: undefined,
-                  history: [
-                      ...e.history,
-                      {
-                          date: getLocalDateString(),
-                          weight: e.currentWeight,
-                          reps: e.reps,
-                          rpe: e.rpe,
-                      }
-                  ]
-              };
-          });
-          return copy;
-      });
-      setSeconds(0);
-      setIsWorkoutRunning(false);
-  }, [currentIdx]);
+    dispatch({ type: 'APPLY_SUGGESTIONS', suggestions: sugs, date: getLocalDateString() });
+    setSeconds(0);
+    setIsWorkoutRunning(false);
+  // getLocalDateString é função pura — não precisa estar no array de deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleActivateAssignment = async (assignment: AssignedWorkout) => {
     await activateAssignedWorkout(assignment, session.user.id, completedDates);
-    setWorkouts(assignment.workouts);
-    setCurrentIdx(0);
+    dispatch({ type: 'SET_WORKOUTS', workouts: assignment.workouts, currentIdx: 0 });
     setSeconds(0);
     setIsWorkoutRunning(false);
     const refreshed = await getAssignedWorkoutsForStudent(session.user.id);
@@ -338,7 +400,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   };
 
   const handleJoinTrainer = async (code: string) => {
-    // Busca dados frescos do usuário — o metadata pode estar desatualizado no JWT da sessão
     const { data: { user: freshUser } } = await supabase.auth.getUser();
     const studentName =
       freshUser?.user_metadata?.full_name ??
@@ -371,6 +432,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
   // --- RENDERIZAÇÃO ---
 
   if (checkingProfile) return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">Carregando...</div>;
+
+  const safeIdx = Math.min(currentIdx, Math.max(workouts.length - 1, 0));
 
   return (
     <div className="min-h-screen bg-gray-950 pb-20 pb-safe relative">
@@ -411,12 +474,12 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
 
       {/* RENDERIZAÇÃO DAS TELAS (TABS) */}
       <div className="max-w-md mx-auto pt-safe-top">
-        
+
         {/* ABA: HOME (INÍCIO) */}
         {activeTab === 'home' && (
             <HomeTab
                 userProfile={userProfile}
-                workoutName={workouts[currentIdx]?.name}
+                workoutName={workouts[safeIdx]?.name}
                 completedDates={completedDates}
                 onStartWorkout={goToWorkout}
                 onImportFile={(file) => handleImport(file)}
@@ -430,7 +493,6 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                 {/* Header fixo: seletor de dias + timer */}
                 <div className="sticky top-0 z-40 bg-gray-950/95 backdrop-blur border-b border-gray-800 shadow-lg">
                     {workouts.length > 0 ? (() => {
-                        const safeIdx = Math.min(currentIdx, workouts.length - 1);
                         const doneCount = workouts[safeIdx].exercises.filter(e => e.isFinished).length;
                         const total = workouts[safeIdx].exercises.length;
                         return (
@@ -469,7 +531,7 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                                         return (
                                             <button
                                                 key={idx}
-                                                onClick={() => setCurrentIdx(idx)}
+                                                onClick={() => dispatch({ type: 'SET_IDX', idx })}
                                                 className={`flex-shrink-0 flex flex-col items-start px-3 py-2 rounded-xl text-left transition-all border min-w-[90px] ${
                                                     isActive
                                                         ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-900/40'
@@ -543,8 +605,8 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
                         </div>
                     ) : (
                         <WorkoutPlanner
-                            key={Math.min(currentIdx, workouts.length - 1)}
-                            workout={workouts[Math.min(currentIdx, workouts.length - 1)]}
+                            key={safeIdx}
+                            workout={workouts[safeIdx]}
                             userProfile={userProfile}
                             onUpdateWeight={updateWeight}
                             onToggleSet={toggleSet}
@@ -563,10 +625,10 @@ export const MainApp: React.FC<{ session: Session }> = ({ session }) => {
         {activeTab === 'plans' && (
             <WorkoutsTab
                 workouts={workouts}
-                currentWorkoutIndex={workouts.length > 0 ? Math.min(currentIdx, workouts.length - 1) : 0}
+                currentWorkoutIndex={workouts.length > 0 ? safeIdx : 0}
                 onImport={handleImport}
                 onSelectAndGo={(index) => {
-                    setCurrentIdx(index);
+                    dispatch({ type: 'SET_IDX', idx: index });
                     goToWorkout();
                 }}
                 onDeleteWorkout={handleDeleteWorkout}

@@ -143,7 +143,7 @@ const StudentForm: React.FC<{ userId: string; onComplete: () => void; onBack: ()
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Idade</label>
-              <input name="age" type="number" inputMode="numeric" required placeholder="Anos" onChange={handleChange}
+              <input name="age" type="number" inputMode="numeric" required placeholder="Anos" min={10} max={100} onChange={handleChange}
                 className="w-full bg-gray-900 border border-gray-600 rounded-xl p-3 text-white focus:border-indigo-500 outline-none" />
             </div>
             <div>
@@ -158,12 +158,12 @@ const StudentForm: React.FC<{ userId: string; onComplete: () => void; onBack: ()
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Peso (kg)</label>
-              <input name="weight" type="number" inputMode="decimal" step="0.1" required placeholder="Ex: 75.5" onChange={handleChange}
+              <input name="weight" type="number" inputMode="decimal" step="0.1" required placeholder="Ex: 75.5" min={30} max={300} onChange={handleChange}
                 className="w-full bg-gray-900 border border-gray-600 rounded-xl p-3 text-white focus:border-indigo-500 outline-none" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Altura (cm)</label>
-              <input name="height" type="number" inputMode="numeric" required placeholder="Ex: 175" onChange={handleChange}
+              <input name="height" type="number" inputMode="numeric" required placeholder="Ex: 175" min={100} max={250} onChange={handleChange}
                 className="w-full bg-gray-900 border border-gray-600 rounded-xl p-3 text-white focus:border-indigo-500 outline-none" />
             </div>
           </div>

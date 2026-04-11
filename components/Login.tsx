@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { DumbbellIcon } from './icons';
 import { supabase } from '../supaBaseClient';
 
 type Role = 'aluno' | 'professor';
@@ -35,7 +34,6 @@ export const Login: React.FC = () => {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        await supabase.auth.updateUser({ data: { selectedRole } });
       }
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Ocorreu um erro.' });
@@ -68,7 +66,41 @@ export const Login: React.FC = () => {
                 : 'bg-indigo-500/15 border border-indigo-500/25 shadow-[0_0_40px_rgba(99,102,241,0.25)]'
             }`}
           >
-            <DumbbellIcon className={`w-10 h-10 transition-colors duration-500 ${isProf ? 'text-emerald-400' : 'text-indigo-400'}`} />
+            <svg
+              viewBox="0 0 64 64"
+              className={`w-10 h-10 transition-colors duration-500 ${isProf ? 'text-emerald-400' : 'text-indigo-400'}`}
+              fill="currentColor"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              {/* Helmet crest / plume */}
+              <path d="M20 2 C20 2 18 8 22 12 L24 12 C22 8 24 4 32 4 C40 4 42 8 40 12 L42 12 C46 8 44 2 44 2 L40 2 C40 2 38 5 32 5 C26 5 24 2 24 2 Z" />
+              {/* Crest feathers */}
+              <rect x="30" y="1" width="4" height="11" rx="2" />
+              {/* Helmet dome */}
+              <path d="M18 28 C18 18 22 12 32 12 C42 12 46 18 46 28 L44 28 C44 19 40 14 32 14 C24 14 20 19 20 28 Z" />
+              {/* Visor / face guard */}
+              <path d="M20 28 L44 28 L44 33 C44 36 40 38 32 38 C24 38 20 36 20 33 Z" />
+              {/* Eye slit */}
+              <rect x="22" y="29" width="20" height="2" rx="1" opacity="0.4" fill="var(--tw-prose-body, #080810)" />
+              {/* Cheek guards */}
+              <path d="M20 28 L18 28 L17 36 C17 38 19 40 22 40 L22 38 C20 38 19 37 20 36 Z" />
+              <path d="M44 28 L46 28 L47 36 C47 38 45 40 42 40 L42 38 C44 38 45 37 44 36 Z" />
+              {/* Neck guard */}
+              <path d="M22 38 L42 38 L43 42 L21 42 Z" />
+              {/* Shield (left arm) */}
+              <path d="M6 34 C4 34 3 36 3 38 L3 54 C3 57 5 59 8 60 L14 62 L14 32 L8 32 C7 32 6 33 6 34 Z" />
+              <path d="M5 42 L13 42 L13 44 L5 44 Z" opacity="0.5" />
+              {/* Body / torso */}
+              <path d="M22 42 L42 42 L44 52 L20 52 Z" />
+              {/* Sword (right arm raised) */}
+              <path d="M50 6 L52 4 L54 6 L52 8 Z" />
+              <rect x="51" y="8" width="2" height="26" rx="1" />
+              <rect x="47" y="28" width="10" height="2" rx="1" />
+              {/* Legs */}
+              <path d="M22 52 L28 52 L27 62 L21 62 Z" />
+              <path d="M36 52 L42 52 L43 62 L37 62 Z" />
+            </svg>
           </div>
           <h1 className="text-4xl font-black tracking-tight text-white">
             Golias<span className={`transition-colors duration-500 ${isProf ? 'text-emerald-400' : 'text-indigo-400'}`}>Fit</span>

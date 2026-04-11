@@ -114,25 +114,70 @@ const processStrengthData = (workouts: Workout[]) => {
 };
 
 // Processar volume semanal
-const processVolumeData = (workouts: Workout[], completedDates: string[]) => {
-  const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+const processVolumeData = (workouts: Workout[], _completedDates: string[]) => {
+  const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   const volumeData = days.map(day => ({ day, volume: 0 }));
 
-  if (workouts.length === 0 || completedDates.length === 0) {
+  if (workouts.length === 0) {
     return volumeData;
   }
 
-  // Calcular volume total por dia (simplificado)
   workouts.forEach(workout => {
-    workout.exercises.forEach(exercise => {
-      const volume = (exercise.currentWeight || 0) * (exercise.reps || 0) * (exercise.sets || 0);
-      // Distribuir volume aleatoriamente para demonstração
-      const randomDay = Math.floor(Math.random() * 5); // Apenas dias úteis
-      volumeData[randomDay].volume += volume;
-    });
+    if (!workout.lastPerformedDate) return;
+
+    const dayIndex = new Date(workout.lastPerformedDate + 'T12:00:00').getDay(); // 0=Dom..6=Sáb
+    const volume = workout.exercises.reduce((sum, exercise) => {
+      return sum + (exercise.currentWeight || 0) * (exercise.reps || 0) * (exercise.sets || 0);
+    }, 0);
+
+    volumeData[dayIndex].volume += volume;
   });
 
   return volumeData;
+};
+
+// Dicionário bilíngue (PT + EN) de palavras-chave por grupo muscular
+const MUSCLE_KEYWORDS: Record<string, string[]> = {
+  Pernas: [
+    // PT
+    'agachamento', 'perna', 'quadríceps', 'quadriceps', 'glúteo', 'gluteo',
+    'stiff', 'leg press', 'extensão', 'flexora', 'panturrilha', 'hack squat',
+    'lunge', 'passada', 'sissy squat', 'step', 'hip thrust', 'elevação pélvica',
+    // EN
+    'squat', 'leg curl', 'leg extension', 'quad', 'glute', 'calf', 'hamstring',
+    'rdl', 'romanian', 'bulgarian', 'goblet', 'sumo',
+  ],
+  Peito: [
+    // PT
+    'supino', 'peito', 'pectoral', 'crucifixo', 'voador', 'crossover',
+    // EN
+    'bench', 'chest', 'fly', 'pec', 'push up', 'pushup', 'push-up', 'dip',
+    'cable fly', 'chest press',
+  ],
+  Costas: [
+    // PT
+    'remada', 'costas', 'dorsal', 'pulley', 'puxada', 'serrátil', 'terra',
+    'levantamento terra', 'barra fixa',
+    // EN
+    'row', 'pull', 'lat', 'chin', 'back', 'pulldown', 'pull-up', 'pullup',
+    'deadlift', 'shrug', 'face pull', 'cable row',
+  ],
+  Braços: [
+    // PT
+    'rosca', 'bíceps', 'biceps', 'tríceps', 'triceps', 'martelo', 'scott',
+    'paralela', 'frances', 'testa',
+    // EN
+    'curl', 'tricep', 'bicep', 'extension', 'hammer', 'preacher', 'kickback',
+    'skull', 'overhead tricep', 'close grip',
+  ],
+  Ombro: [
+    // PT
+    'ombro', 'deltoide', 'delta', 'elevação lateral', 'elevação frontal',
+    'desenvolvimento', 'arnold',
+    // EN
+    'shoulder', 'delt', 'lateral raise', 'front raise', 'overhead press',
+    'military press', 'arnold press', 'upright row',
+  ],
 };
 
 // Processar distribuição por grupo muscular
@@ -150,16 +195,11 @@ const processMuscleGroupData = (workouts: Workout[]) => {
       const exerciseName = exercise.name.toLowerCase();
       let group = '';
 
-      if (exerciseName.includes('agachamento') || exerciseName.includes('perna') || exerciseName.includes('quadríceps')) {
-        group = 'Pernas';
-      } else if (exerciseName.includes('supino') || exerciseName.includes('peito') || exerciseName.includes('pectoral')) {
-        group = 'Peito';
-      } else if (exerciseName.includes('remada') || exerciseName.includes('costas') || exerciseName.includes('dorsal')) {
-        group = 'Costas';
-      } else if (exerciseName.includes('rosca') || exerciseName.includes('bíceps') || exerciseName.includes('tríceps')) {
-        group = 'Braços';
-      } else if (exerciseName.includes('ombro') || exerciseName.includes('deltoide')) {
-        group = 'Ombro';
+      for (const [groupName, keywords] of Object.entries(MUSCLE_KEYWORDS)) {
+        if (keywords.some(kw => exerciseName.includes(kw))) {
+          group = groupName;
+          break;
+        }
       }
 
       if (group && muscleGroups[group] !== undefined) {
@@ -317,19 +357,3 @@ const generateInsights = (workouts: Workout[], completedDates: string[]) => {
   return insights;
 };
 
-// Funções auxiliares que estavam faltando
-const calculateConsistency = (workouts: any[]) => {
-  if (workouts.length === 0) return 0;
-  // Lógica simplificada
-  return Math.min(workouts.length * 15, 100);
-};
-
-const calculateStrengthProgress = (workouts: any[]) => {
-  if (workouts.length < 2) return 0;
-  return 18; // Exemplo simplificado
-};
-
-const checkStagnation = (lastThreeWorkouts: any[]) => {
-  if (lastThreeWorkouts.length < 3) return false;
-  return false; // Exemplo simplificado
-};
