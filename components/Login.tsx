@@ -32,8 +32,21 @@ export const Login: React.FC = () => {
           setMessage({ type: 'success', text: 'Cadastro realizado! Verifique seu email se necessário.' });
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+
+        // Validate that the account role matches the selected tab
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', signInData.user.id)
+          .maybeSingle();
+
+        if (profile?.role && profile.role !== selectedRole) {
+          await supabase.auth.signOut();
+          const correct = profile.role === 'professor' ? 'Professor 🎓' : 'Aluno 💪';
+          throw new Error(`Esta conta é de ${correct}. Selecione a aba correta e tente novamente.`);
+        }
       }
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Ocorreu um erro.' });
