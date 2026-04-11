@@ -88,6 +88,13 @@ export interface TrainerInvite {
   created_at: string;
 }
 
+export interface StudentProgress {
+  totalWorkouts: number;
+  streak: number;
+  lastWorkoutDate: string | null; // ISO date da sessão mais recente
+  activeProgramName: string | null;
+}
+
 // Adicione essas interfaces se ainda não existirem
 export interface DailyNutrition {
   calories: {

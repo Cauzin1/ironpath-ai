@@ -1,5 +1,6 @@
 import { supabase } from '../supaBaseClient';
-import { TrainerStudent, TrainerWorkout, AssignedWorkout, TrainerInvite, Workout } from '../types';
+import { TrainerStudent, TrainerWorkout, AssignedWorkout, TrainerInvite, Workout, StudentProgress } from '../types';
+import { calculateStreak } from '../utils/gamification';
 
 // ─── Invite Codes ─────────────────────────────────────────────────────────────
 
@@ -184,6 +185,100 @@ export const getAssignedWorkoutsForStudent = async (
     .order('assigned_at', { ascending: false });
   if (error) throw error;
   return data ?? [];
+};
+
+export const getAssignedWorkoutsForTrainer = async (
+  trainerId: string
+): Promise<AssignedWorkout[]> => {
+  const { data, error } = await supabase
+    .from('assigned_workouts')
+    .select('*')
+    .eq('trainer_id', trainerId)
+    .order('assigned_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+};
+
+/**
+ * Busca o progresso de cada aluno consultando user_progress em lote.
+ * Retorna um map de student_id → StudentProgress.
+ */
+export const getStudentsProgress = async (
+  studentIds: string[],
+  assignments: AssignedWorkout[]
+): Promise<Record<string, StudentProgress>> => {
+  if (studentIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('user_progress')
+    .select('user_id, completed_dates')
+    .in('user_id', studentIds);
+
+  if (error) throw error;
+
+  const result: Record<string, StudentProgress> = {};
+
+  for (const studentId of studentIds) {
+    const row = data?.find(p => p.user_id === studentId);
+    const completedDates: string[] = row?.completed_dates ?? [];
+    const lastWorkoutDate = completedDates.length > 0
+      ? [...completedDates].sort().at(-1) ?? null
+      : null;
+
+    const activeAssignment = assignments.find(
+      a => a.student_id === studentId && a.is_active
+    );
+
+    result[studentId] = {
+      totalWorkouts: completedDates.length,
+      streak: calculateStreak(completedDates),
+      lastWorkoutDate,
+      activeProgramName: activeAssignment?.workout_name ?? null,
+    };
+  }
+
+  return result;
+};
+
+/**
+ * Atualiza os workouts em todos os assigned_workouts vinculados ao template.
+ * NÃO toca user_progress (preserva o histórico do aluno).
+ * Retorna { synced: total de registros atualizados, activatedCount: já ativados (não afetam user_progress) }.
+ */
+export const syncWorkoutToStudents = async (
+  trainerWorkoutId: string,
+  updatedWorkouts: Workout[]
+): Promise<{ synced: number; activatedCount: number }> => {
+  const { data: assignments, error: fetchErr } = await supabase
+    .from('assigned_workouts')
+    .select('id, is_active')
+    .eq('trainer_workout_id', trainerWorkoutId);
+
+  if (fetchErr) throw fetchErr;
+  if (!assignments || assignments.length === 0) return { synced: 0, activatedCount: 0 };
+
+  // Workouts limpos para o snapshot da atribuição
+  const freshWorkouts: Workout[] = updatedWorkouts.map(w => ({
+    ...w,
+    lastPerformedDate: undefined,
+    exercises: w.exercises.map(e => ({
+      ...e,
+      completedSets: [],
+      isFinished: false,
+      rpe: undefined,
+      history: [],
+    })),
+  }));
+
+  const { error: updateErr } = await supabase
+    .from('assigned_workouts')
+    .update({ workouts: freshWorkouts, updated_at: new Date().toISOString() })
+    .in('id', assignments.map(a => a.id));
+
+  if (updateErr) throw updateErr;
+
+  const activatedCount = assignments.filter(a => a.is_active).length;
+  return { synced: assignments.length, activatedCount };
 };
 
 export const activateAssignedWorkout = async (

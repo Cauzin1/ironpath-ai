@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrainerStudent, TrainerInvite } from '../../types';
+import { TrainerStudent, TrainerInvite, StudentProgress } from '../../types';
 import { UsersIcon, CopyIcon, TrashIcon } from '../icons';
 import { generateInviteCode, getMyInviteCode, removeStudent } from '../../services/trainerService';
 
@@ -7,10 +7,10 @@ interface TrainerStudentsProps {
   trainerId: string;
   trainerName: string;
   students: TrainerStudent[];
+  studentsProgress: Record<string, StudentProgress>;
   onStudentsChange: () => void;
 }
 
-// Gradient palette for student avatars
 const AVATAR_GRADIENTS = [
   'from-violet-500 to-purple-600',
   'from-blue-500 to-indigo-600',
@@ -23,14 +23,33 @@ const AVATAR_GRADIENTS = [
 ];
 
 function avatarGradient(name: string): string {
-  const code = name.charCodeAt(0) || 0;
-  return AVATAR_GRADIENTS[code % AVATAR_GRADIENTS.length];
+  return AVATAR_GRADIENTS[(name.charCodeAt(0) || 0) % AVATAR_GRADIENTS.length];
+}
+
+function formatJoinDate(iso: string): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function lastWorkoutLabel(date: string | null): { text: string; warning: boolean } {
+  if (!date) return { text: 'Nunca treinou', warning: true };
+  const d = new Date(date + 'T12:00:00');
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const diff = Math.round((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff === 0) return { text: 'Treinou hoje', warning: false };
+  if (diff === 1) return { text: 'Treinou ontem', warning: false };
+  if (diff <= 6) return { text: `Há ${diff} dias`, warning: false };
+  if (diff <= 13) return { text: `Há 1 semana`, warning: true };
+  if (diff <= 29) return { text: `Há ${Math.round(diff / 7)} semanas`, warning: true };
+  return { text: `Há ${Math.round(diff / 30)} meses`, warning: true };
 }
 
 export const TrainerStudents: React.FC<TrainerStudentsProps> = ({
   trainerId,
   trainerName,
   students,
+  studentsProgress,
   onStudentsChange,
 }) => {
   const [invite, setInvite] = useState<TrainerInvite | null>(null);
@@ -94,11 +113,6 @@ export const TrainerStudents: React.FC<TrainerStudentsProps> = ({
     }
   };
 
-  const formatDate = (iso: string) => {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
-
   return (
     <div className="px-4 pt-4 pb-28 space-y-4 animate-fade-in">
 
@@ -112,12 +126,10 @@ export const TrainerStudents: React.FC<TrainerStudentsProps> = ({
 
       {/* Stats + Invite row */}
       <div className="grid grid-cols-2 gap-3">
-        {/* Student count */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
           <p className="text-3xl font-black text-white">{students.length}</p>
           <p className="text-gray-500 text-xs mt-1">Aluno{students.length !== 1 ? 's' : ''} vinculado{students.length !== 1 ? 's' : ''}</p>
         </div>
-        {/* Invite button */}
         <button
           onClick={handleShowCode}
           disabled={generatingCode}
@@ -163,9 +175,7 @@ export const TrainerStudents: React.FC<TrainerStudentsProps> = ({
       {/* Students list */}
       {students.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-20 h-20 bg-gray-900 rounded-full flex items-center justify-center mb-4 text-4xl">
-            👥
-          </div>
+          <div className="w-20 h-20 bg-gray-900 rounded-full flex items-center justify-center mb-4 text-4xl">👥</div>
           <p className="text-white font-bold text-lg">Nenhum aluno ainda</p>
           <p className="text-gray-500 text-sm mt-1 max-w-xs">Gere um código de convite e compartilhe com seus alunos</p>
           <button
@@ -182,48 +192,98 @@ export const TrainerStudents: React.FC<TrainerStudentsProps> = ({
           {students.map((student) => {
             const isConfirming = removeConfirmId === student.id;
             const initial = student.student_name.charAt(0).toUpperCase() || '?';
-            return (
-              <div
-                key={student.id}
-                className="bg-gray-900 border border-gray-800 rounded-2xl p-4 transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  {/* Colored avatar */}
-                  <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarGradient(student.student_name)} flex items-center justify-center shadow-lg flex-shrink-0`}>
-                    <span className="text-white font-black text-lg">{initial}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold leading-tight truncate">{student.student_name}</p>
-                    <p className="text-gray-600 text-xs mt-0.5">Desde {formatDate(student.joined_at)}</p>
-                  </div>
-                  <button
-                    onClick={() => setRemoveConfirmId(isConfirming ? null : student.id)}
-                    className={`p-2 rounded-xl transition-colors ${isConfirming ? 'bg-red-900/30 text-red-400' : 'text-gray-600 hover:text-red-400 hover:bg-red-900/20'}`}
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </div>
+            const progress = studentsProgress[student.student_id];
+            const lastWorkout = lastWorkoutLabel(progress?.lastWorkoutDate ?? null);
+            const isInactive = lastWorkout.warning;
 
-                {isConfirming && (
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={() => setRemoveConfirmId(null)}
-                      disabled={removing}
-                      className="flex-1 py-2.5 rounded-xl bg-gray-800 text-gray-300 text-sm font-semibold hover:bg-gray-700 transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={() => handleRemove(student.id)}
-                      disabled={removing}
-                      className="flex-1 py-2.5 rounded-xl bg-red-900/50 border border-red-700/40 text-red-300 text-sm font-semibold hover:bg-red-900/80 transition-colors flex items-center justify-center"
-                    >
-                      {removing
-                        ? <div className="w-4 h-4 border-2 border-red-300/30 border-t-red-300 rounded-full animate-spin" />
-                        : 'Remover aluno'}
-                    </button>
+            return (
+              <div key={student.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden transition-all">
+
+                {/* Inactive bar */}
+                {progress && isInactive && (
+                  <div className="bg-amber-900/20 border-b border-amber-700/20 px-4 py-1.5 flex items-center gap-2">
+                    <span className="text-amber-400 text-[10px] font-bold uppercase tracking-wider">⚠ Inativo</span>
+                    <span className="text-amber-600 text-[10px]">{lastWorkout.text}</span>
                   </div>
                 )}
+
+                <div className="p-4">
+                  {/* Top row: avatar + name + remove */}
+                  <div className="flex items-center gap-3">
+                    <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarGradient(student.student_name)} flex items-center justify-center shadow-lg flex-shrink-0`}>
+                      <span className="text-white font-black text-lg">{initial}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold leading-tight truncate">{student.student_name}</p>
+                      <p className="text-gray-600 text-xs mt-0.5">
+                        {progress && !isInactive
+                          ? <span className="text-emerald-600">{lastWorkout.text}</span>
+                          : <span>Desde {formatJoinDate(student.joined_at)}</span>
+                        }
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setRemoveConfirmId(isConfirming ? null : student.id)}
+                      className={`p-2 rounded-xl transition-colors ${isConfirming ? 'bg-red-900/30 text-red-400' : 'text-gray-600 hover:text-red-400 hover:bg-red-900/20'}`}
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Progress stats */}
+                  {progress !== undefined && (
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {/* Streak */}
+                      <div className="bg-gray-800/60 rounded-xl px-3 py-2 text-center">
+                        <p className="text-white font-black text-base leading-none">
+                          {progress.streak > 0 ? `🔥${progress.streak}` : '—'}
+                        </p>
+                        <p className="text-gray-600 text-[10px] mt-0.5">sequência</p>
+                      </div>
+                      {/* Total workouts */}
+                      <div className="bg-gray-800/60 rounded-xl px-3 py-2 text-center">
+                        <p className="text-white font-black text-base leading-none">{progress.totalWorkouts}</p>
+                        <p className="text-gray-600 text-[10px] mt-0.5">treinos</p>
+                      </div>
+                      {/* Active program */}
+                      <div className="bg-gray-800/60 rounded-xl px-2 py-2 text-center">
+                        {progress.activeProgramName ? (
+                          <>
+                            <p className="text-emerald-400 font-bold text-[10px] leading-tight truncate">{progress.activeProgramName}</p>
+                            <p className="text-gray-600 text-[10px] mt-0.5">programa</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-gray-600 text-[10px] leading-tight">sem</p>
+                            <p className="text-gray-600 text-[10px]">programa</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Remove confirmation */}
+                  {isConfirming && (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => setRemoveConfirmId(null)}
+                        disabled={removing}
+                        className="flex-1 py-2.5 rounded-xl bg-gray-800 text-gray-300 text-sm font-semibold hover:bg-gray-700 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => handleRemove(student.id)}
+                        disabled={removing}
+                        className="flex-1 py-2.5 rounded-xl bg-red-900/50 border border-red-700/40 text-red-300 text-sm font-semibold hover:bg-red-900/80 transition-colors flex items-center justify-center"
+                      >
+                        {removing
+                          ? <div className="w-4 h-4 border-2 border-red-300/30 border-t-red-300 rounded-full animate-spin" />
+                          : 'Remover aluno'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}

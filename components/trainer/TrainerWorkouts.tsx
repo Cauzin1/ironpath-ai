@@ -1,15 +1,24 @@
 import React, { useState } from 'react';
-import { TrainerWorkout, TrainerStudent } from '../../types';
+import { TrainerWorkout, TrainerStudent, AssignedWorkout, Workout } from '../../types';
 import { WorkoutBuilder } from './WorkoutBuilder';
 import { DumbbellIcon, TrashIcon, PlusCircleIcon } from '../icons';
-import { saveTrainerWorkout, deleteTrainerWorkout, assignWorkoutToStudent } from '../../services/trainerService';
+import { saveTrainerWorkout, deleteTrainerWorkout, assignWorkoutToStudent, syncWorkoutToStudents } from '../../services/trainerService';
 
 interface TrainerWorkoutsProps {
   trainerId: string;
   trainerName: string;
   workouts: TrainerWorkout[];
   students: TrainerStudent[];
+  assignments: AssignedWorkout[];
   onWorkoutsChange: () => void;
+  onSyncDone: () => void;
+}
+
+interface PendingSync {
+  workoutId: string;
+  workoutName: string;
+  workouts: Workout[];
+  assignedCount: number;
 }
 
 const AVATAR_GRADIENTS = [
@@ -32,7 +41,9 @@ export const TrainerWorkouts: React.FC<TrainerWorkoutsProps> = ({
   trainerName,
   workouts,
   students,
+  assignments,
   onWorkoutsChange,
+  onSyncDone,
 }) => {
   const [showBuilder, setShowBuilder] = useState(false);
   const [editing, setEditing] = useState<TrainerWorkout | null>(null);
@@ -42,12 +53,43 @@ export const TrainerWorkouts: React.FC<TrainerWorkoutsProps> = ({
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
   const [assignSuccess, setAssignSuccess] = useState(false);
+  const [pendingSync, setPendingSync] = useState<PendingSync | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
 
   const handleSave = async (name: string, wkts: TrainerWorkout['workouts']) => {
     await saveTrainerWorkout({ id: editing?.id, trainer_id: trainerId, name, workouts: wkts });
     setShowBuilder(false);
+    const editingId = editing?.id;
     setEditing(null);
     onWorkoutsChange();
+
+    // Check if this template has assigned students — prompt sync
+    if (editingId) {
+      const assignedCount = assignments.filter(
+        a => a.trainer_workout_id === editingId
+      ).length;
+      if (assignedCount > 0) {
+        setPendingSync({ workoutId: editingId, workoutName: name, workouts: wkts, assignedCount });
+      }
+    }
+  };
+
+  const handleSync = async () => {
+    if (!pendingSync) return;
+    setSyncing(true);
+    try {
+      const { synced, activatedCount } = await syncWorkoutToStudents(pendingSync.workoutId, pendingSync.workouts);
+      let msg = `${synced} aluno${synced !== 1 ? 's' : ''} sincronizado${synced !== 1 ? 's' : ''}`;
+      if (activatedCount > 0) msg += ` · ${activatedCount} já ativo${activatedCount !== 1 ? 's' : ''} (não afetado${activatedCount !== 1 ? 's' : ''})`;
+      setSyncResult(msg);
+      onSyncDone();
+      setTimeout(() => { setPendingSync(null); setSyncResult(null); }, 3000);
+    } catch (err: any) {
+      setSyncResult(`Erro: ${err?.message ?? 'Falha na sincronização'}`);
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -114,6 +156,43 @@ export const TrainerWorkouts: React.FC<TrainerWorkoutsProps> = ({
     <>
     <div className="px-4 pt-4 pb-28 space-y-4 animate-fade-in">
 
+      {/* Sync banner */}
+      {pendingSync && (
+        <div className="bg-blue-900/20 border border-blue-700/30 rounded-2xl p-4 space-y-3">
+          {syncResult ? (
+            <p className={`text-sm font-semibold text-center ${syncResult.startsWith('Erro') ? 'text-red-400' : 'text-emerald-400'}`}>
+              {syncResult}
+            </p>
+          ) : (
+            <>
+              <div>
+                <p className="text-blue-300 text-sm font-bold">Sincronizar alterações?</p>
+                <p className="text-blue-500 text-xs mt-0.5">
+                  "{pendingSync.workoutName}" foi atualizado · {pendingSync.assignedCount} aluno{pendingSync.assignedCount !== 1 ? 's' : ''} com este programa
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPendingSync(null)}
+                  className="flex-1 py-2 rounded-xl bg-gray-800 text-gray-400 text-sm font-semibold hover:bg-gray-700 transition-colors"
+                >
+                  Ignorar
+                </button>
+                <button
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2 active:scale-95"
+                >
+                  {syncing
+                    ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    : 'Sincronizar'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Create button */}
       <button
         onClick={() => setShowBuilder(true)}
@@ -148,6 +227,7 @@ export const TrainerWorkouts: React.FC<TrainerWorkoutsProps> = ({
           </p>
           {workouts.map(tw => {
             const totalExercises = tw.workouts.reduce((acc, w) => acc + w.exercises.length, 0);
+            const assignedCount = assignments.filter(a => a.trainer_workout_id === tw.id).length;
             return (
               <div key={tw.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
                 <div className="p-4">
@@ -160,6 +240,9 @@ export const TrainerWorkouts: React.FC<TrainerWorkoutsProps> = ({
                       <p className="text-white font-bold leading-tight">{tw.name}</p>
                       <p className="text-gray-600 text-xs mt-0.5">
                         {tw.workouts.length} dia{tw.workouts.length !== 1 ? 's' : ''} · {totalExercises} exercício{totalExercises !== 1 ? 's' : ''}
+                        {assignedCount > 0 && (
+                          <span className="ml-2 text-blue-400 font-semibold">· {assignedCount} aluno{assignedCount !== 1 ? 's' : ''}</span>
+                        )}
                       </p>
                     </div>
                     {/* Delete */}
